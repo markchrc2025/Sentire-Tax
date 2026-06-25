@@ -6,7 +6,7 @@
   "description": "Sentire BIR Form Generator — Philippine BIR tax-form generator (React + TypeScript + Vite)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "test": "vitest run",
