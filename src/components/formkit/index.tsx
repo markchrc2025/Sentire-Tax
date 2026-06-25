@@ -2,10 +2,18 @@
 // Ported from bir-formkit.jsx (BirBoxes, BirAmt, BirText, BirVal, BirCk, BirCkRow).
 
 import type { CSSProperties, ReactNode } from "react";
-import type { FilingData } from "../../types";
+import type { FilingData, FilingRow } from "../../types";
 import { fmtAmt, num, roundPeso } from "../../lib/format";
 
-export type SetFn = (field: string, value: string) => void;
+/**
+ * Form-level setter. Most fields take a raw string; the repeating-row tables
+ * (2307, 2551Q) pass their whole array under the "rows" key. Used by form/guided
+ * components and forwarded down to the field atoms (which use `FieldSetFn`).
+ */
+export type SetFn = (field: string, value: string | FilingRow[]) => void;
+
+/** Atom-level setter — only ever receives a string. */
+export type FieldSetFn = (field: string, value: string) => void;
 
 /** Read a raw string field value from filing data. */
 function raw(data: FilingData | undefined, field: string): string {
@@ -73,7 +81,7 @@ export function BirAmt({
 }: {
   field?: string;
   data?: FilingData;
-  set?: SetFn;
+  set?: FieldSetFn;
   ro?: boolean;
   value?: number;
   dim?: boolean;
@@ -118,7 +126,7 @@ export function BirText({
 }: {
   field: string;
   data: FilingData;
-  set: SetFn;
+  set: FieldSetFn;
   placeholder?: string;
   lower?: boolean;
 }) {

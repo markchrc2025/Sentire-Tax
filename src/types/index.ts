@@ -48,7 +48,10 @@ export interface Taxpayer {
 }
 
 // ---- per-form repeating rows (2307, 2551Q) ----
+// The index signature lets a single row object be passed straight to the
+// field atoms (which expect a string-keyed `data`).
 export interface Row2307 {
+  [key: string]: string | undefined;
   atc?: string;
   desc?: string;
   m1?: string;
@@ -58,6 +61,7 @@ export interface Row2307 {
 }
 
 export interface Row2551Q {
+  [key: string]: string | undefined;
   atc?: string;
   desc?: string;
   taxable?: string;
@@ -69,12 +73,12 @@ export type FilingRow = Row2307 | Row2551Q;
 /**
  * Raw field values for a filing, keyed by form-field id (e.g. "i36A",
  * "salesA", "year"). Values are the literal strings the user typed; computed
- * values are NEVER stored — always derived via `computeFor`. The `rows` key
- * holds the repeating-line tables used by 2307 and 2551Q.
+ * values are NEVER stored — always derived via `computeFor`. The repeating-line
+ * tables used by 2307/2551Q live under the "rows" key (read with a cast to the
+ * relevant Row type).
  */
 export interface FilingData {
   [key: string]: string | FilingRow[] | undefined;
-  rows?: FilingRow[];
 }
 
 /** A saved eBIRForms XML export, kept on the filing for reference. */

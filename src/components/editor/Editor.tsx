@@ -69,7 +69,7 @@ export function Editor({
     setData((d) => {
       const nd: FilingData = { ...d, [field]: val };
       filing.data = nd;
-      if (field === "year") filing.period = val;
+      if (field === "year" && typeof val === "string") filing.period = val;
       repo.filings.save(filing);
       return nd;
     });
