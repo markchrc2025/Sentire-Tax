@@ -1,0 +1,63 @@
+/* tokens.css — Sentire BIR Form Generator design tokens (final) */
+:root {
+  /* Brand */
+  --acc: #e8693a;
+  --acc-press: #c2552f;
+  --acc-soft: #fdeee6;
+  --tax: #a0627d;
+  --tax-soft: #f5ebf0;
+
+  /* Ink / surfaces */
+  --ink: #2a2420;
+  --muted: #6b6259;
+  --muted-2: #9b9085;
+  --bg: #f6f2ec;
+  --paper: #ffffff;
+  --line: #ece6dd;
+  --line-2: #f1ece4;
+  --side-1: #2e241c;
+  --side-2: #1f1813;
+
+  /* Category colors */
+  --cat-income: #a0627d;
+  --cat-business: #5e7fb1;
+  --cat-withholding: #4f9373;
+
+  /* Typography */
+  --font: "Instrument Sans", system-ui, sans-serif;
+  --body: "Hanken Grotesk", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+#root {
+  height: 100%;
+}
+body {
+  font-family: var(--body);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font-family: var(--font);
+  cursor: pointer;
+}
+input,
+select {
+  font-family: var(--body);
+}
+::selection {
+  background: var(--acc-soft);
+}
+a {
+  color: var(--acc);
+  cursor: pointer;
+  text-decoration: none;
+}

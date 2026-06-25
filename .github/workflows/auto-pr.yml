@@ -1,0 +1,46 @@
+name: Auto PR & Squash Auto-merge
+
+# Standing automation: whenever a feature branch is pushed, open a PR into main
+# (if one isn't open yet) and enable auto-merge with the SQUASH strategy. GitHub
+# completes the merge automatically once the branch is mergeable and all required
+# status checks (see CI workflow + branch protection) pass.
+#
+# One-time repo settings required for this to fully work:
+#   1. Settings → General → Pull Requests → enable "Allow auto-merge".
+#   2. Settings → Branches → add a protection rule on `main` that requires the
+#      "build-test" status check (from the CI workflow). Without a required
+#      check, auto-merge merges as soon as the branch is mergeable.
+#   3. (Optional) set "Squash and merge" as the default merge method.
+
+on:
+  push:
+    branches:
+      - "claude/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-pr:
+    name: open-pr-and-automerge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open PR (if needed) and enable squash auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "$BRANCH" \
+              --body "Automated PR opened on push to \`$BRANCH\`. Squash auto-merge is enabled — this merges once the branch is mergeable and required checks pass." \
+              || echo "::warning::Could not open PR automatically — enable 'Allow GitHub Actions to create and approve pull requests' in Settings → Actions → General → Workflow permissions."
+          fi
+          # Enable squash auto-merge. Tolerate failure (e.g. "Allow auto-merge"
+          # not yet enabled in repo settings) so the PR still opens.
+          gh pr merge "$BRANCH" --squash --auto \
+            || echo "::warning::Could not enable auto-merge — enable 'Allow auto-merge' in repo settings (Settings → General → Pull Requests)."
