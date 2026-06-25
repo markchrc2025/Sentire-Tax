@@ -37,7 +37,8 @@ jobs:
           if [ -z "$existing" ]; then
             gh pr create --base main --head "$BRANCH" \
               --title "$BRANCH" \
-              --body "Automated PR opened on push to \`$BRANCH\`. Squash auto-merge is enabled — this merges once the branch is mergeable and required checks pass."
+              --body "Automated PR opened on push to \`$BRANCH\`. Squash auto-merge is enabled — this merges once the branch is mergeable and required checks pass." \
+              || echo "::warning::Could not open PR automatically — enable 'Allow GitHub Actions to create and approve pull requests' in Settings → Actions → General → Workflow permissions."
           fi
           # Enable squash auto-merge. Tolerate failure (e.g. "Allow auto-merge"
           # not yet enabled in repo settings) so the PR still opens.
