@@ -172,7 +172,8 @@
 .atc-grid .bir-ckwrap { font-size: 10px; }
 .atc-grid .bir-ckwrap span { white-space: nowrap; }
 
-/* highlight active vs inactive rate block */
-.bir-dim { opacity: 0.42; }
+/* The faithful Form view mirrors the PRINTED BIR form, which shows every
+   section at full strength — so no rate block (Part IV-A vs IV-B) is dimmed,
+   even when unused. (The data-rate attribute is kept for potential print logic.) */
 .bir-doc[data-rate="graduated"] .when-eight,
-.bir-doc[data-rate="eight"] .when-grad { opacity: 0.4; }
+.bir-doc[data-rate="eight"] .when-grad { opacity: 1; }
