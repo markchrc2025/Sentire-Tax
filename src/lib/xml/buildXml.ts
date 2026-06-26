@@ -13,13 +13,17 @@ import type { CompResult } from "../compute";
 import { catalogEntry } from "../catalog";
 import { displayName } from "../taxpayer";
 import { parsePeriod } from "../period";
-import { build1701A, fileName as fileName1701A } from "./build1701A";
-import { build1701Q, fileName1701Q } from "./build1701Q";
-import { build1702RT, fileName1702RT } from "./build1702RT";
-import { build2550Q, fileName2550Q } from "./build2550Q";
-import { build2551Q, fileName2551Q } from "./build2551Q";
-import { amt, enc, parseYear, tinParts } from "./xmlkit";
-import type { Comp1701A, Comp1701Q, Comp1702RT, Comp2550Q, Comp2551Q } from "../compute";
+import { build1701 } from "./build1701";
+import { build1701A } from "./build1701A";
+import { build1701Q } from "./build1701Q";
+import { build1702RT } from "./build1702RT";
+import { build1702Q } from "./build1702Q";
+import { build2550Q } from "./build2550Q";
+import { build2551Q } from "./build2551Q";
+import { amt, enc, formFileName, tinParts } from "./xmlkit";
+import type {
+  Comp1701, Comp1701A, Comp1701Q, Comp1702Q, Comp1702RT, Comp2550Q, Comp2551Q,
+} from "../compute";
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -36,12 +40,16 @@ export function buildXml(
   comp: CompResult,
 ): string {
   switch (form) {
+    case "1701":
+      return build1701(filing, tp, comp as Comp1701);
     case "1701A":
       return build1701A(filing, tp, comp as Comp1701A);
     case "1701Q":
       return build1701Q(filing, tp, comp as Comp1701Q);
     case "1702RT":
       return build1702RT(filing, tp, comp as Comp1702RT);
+    case "1702Q":
+      return build1702Q(filing, tp, comp as Comp1702Q);
     case "2550Q":
       return build2550Q(filing, tp, comp as Comp2550Q);
     case "2551Q":
@@ -51,24 +59,18 @@ export function buildXml(
   }
 }
 
-/** Canonical export filename for a form (the five aligned forms match the package). */
+/**
+ * Forms with no eBIRForms XML to import: the 2307 and 2316 certificates are
+ * issued (printed/PDF) to payees/employees, not e-filed, so no XML is required.
+ */
+const XML_UNSUPPORTED: readonly FormCode[] = ["2307", "2316"];
+export function xmlSupported(form: FormCode): boolean {
+  return !XML_UNSUPPORTED.includes(form);
+}
+
+/** Canonical eBIRForms export filename — single source of truth in xmlkit. */
 export function xmlFileName(form: FormCode, filing: Filing, tp: Taxpayer | null): string {
-  switch (form) {
-    case "1701A":
-      return fileName1701A(filing, tp);
-    case "1701Q":
-      return fileName1701Q(filing, tp);
-    case "1702RT":
-      return fileName1702RT(filing, tp);
-    case "2550Q":
-      return fileName2550Q(filing, tp);
-    case "2551Q":
-      return fileName2551Q(filing, tp);
-  }
-  const t = tinParts(tp);
-  const { year, quarter } = parsePeriod(filing.period || String((filing.data || {}).year || ""));
-  const period = quarter ? `${year}${quarter}` : year || parseYear((filing.data || {}).year).yyyy;
-  return `${t.t1}${t.t2}${t.t3}${t.branch3}-${form}-${period}.xml`;
+  return formFileName(form, filing, tp);
 }
 
 /**
