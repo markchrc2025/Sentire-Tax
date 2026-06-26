@@ -97,8 +97,7 @@ export function Editor({
     const xml = build1701A(filing, tp, c);
     const filename = fileName(filing, tp);
     const record: XmlExport = { at: Date.now(), filename, xml };
-    filing.exports = [record, ...(filing.exports || [])].slice(0, 12);
-    repo.filings.save(filing);
+    repo.filings.addExport(filing.id, record);
     refresh();
     downloadXml(filename, xml);
     setXmlMsg(filename);

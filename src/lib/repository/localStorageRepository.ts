@@ -153,7 +153,36 @@ export class LocalStorageRepository implements Repository {
       delete this.db.filings[id];
       this.persist();
     },
+    addExport: (filingId, record) => {
+      const f = this.db.filings[filingId];
+      if (!f) return;
+      f.exports = [record, ...(f.exports || [])].slice(0, 12);
+      f.updatedAt = Date.now();
+      this.persist();
+    },
   };
+
+  // localStorage already loads synchronously in the constructor.
+  hydrate(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  // Writes are synchronous and already persisted — nothing to flush.
+  flush(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  // File attachments require object storage — unsupported in local mode.
+  readonly supportsFiles = false;
+  async uploadCor(): Promise<void> {
+    throw new Error("File attachments require the cloud store. Configure Supabase to attach a COR.");
+  }
+  async corUrl(): Promise<string | null> {
+    return null;
+  }
+  async removeCor(): Promise<void> {
+    /* no-op */
+  }
 
   resetAll(): void {
     this.db = blank();

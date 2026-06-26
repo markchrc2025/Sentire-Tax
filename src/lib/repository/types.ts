@@ -1,7 +1,9 @@
-// repository/types.ts — storage abstraction. The localStorage implementation
-// is the default; this interface lets a backend be swapped in later.
+// repository/types.ts — storage abstraction. Two implementations satisfy it:
+// LocalStorageRepository (default) and SupabaseRepository (cloud). The CRUD
+// surface is synchronous (the UI reads during render); cloud writes are
+// debounced write-through against an in-memory cache hydrated on login.
 
-import type { Filing, FormCode, Taxpayer } from "../../types";
+import type { Filing, FormCode, Taxpayer, XmlExport } from "../../types";
 
 export interface TaxpayerRepository {
   all(): Taxpayer[];
@@ -19,11 +21,27 @@ export interface FilingRepository {
   create(form: FormCode, taxpayerId: string): Filing;
   save(filing: Filing): Filing;
   remove(id: string): void;
+  /** Record a generated eBIRForms XML export against a filing. */
+  addExport(filingId: string, record: XmlExport): void;
 }
 
 export interface Repository {
   taxpayers: TaxpayerRepository;
   filings: FilingRepository;
+  /** Load persisted data into the in-memory cache. Instant for localStorage. */
+  hydrate(): Promise<void>;
+  /** Flush any pending (debounced) writes immediately. No-op for localStorage. */
+  flush(): Promise<void>;
   /** Wipe all data (used by dev tooling). */
   resetAll(): void;
+
+  // ---- file attachments (BIR Certificate of Registration) ----
+  /** Whether this store supports COR file attachments (cloud only). */
+  readonly supportsFiles: boolean;
+  /** Upload/replace a taxpayer's COR file and persist its path. */
+  uploadCor(taxpayerId: string, file: File): Promise<void>;
+  /** A temporary signed URL to view/download the COR, or null if none. */
+  corUrl(taxpayerId: string): Promise<string | null>;
+  /** Remove a taxpayer's COR file. */
+  removeCor(taxpayerId: string): Promise<void>;
 }

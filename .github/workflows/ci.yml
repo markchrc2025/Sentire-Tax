@@ -1,13 +1,16 @@
 name: CI
 
 # Quality gate: typecheck, build, and run the compute test-suite.
-# Runs on pushes to main and feature branches (so the status check is attached
-# to the head commit) and on PRs into main.
+#
+# Triggered on PUSH to main and feature branches so the `build-test` status
+# check is attached to every head commit (this is the check required by branch
+# protection). We intentionally do NOT use a `pull_request` trigger: PRs opened
+# by the Auto-PR workflow's GITHUB_TOKEN create a run stuck in "action_required"
+# (needs manual approval), which would block squash auto-merge on every PR.
 on:
   push:
     branches: [main, "claude/**"]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-test:
