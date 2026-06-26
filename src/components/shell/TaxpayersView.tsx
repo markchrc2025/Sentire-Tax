@@ -2,7 +2,7 @@
 // Ported from TaxpayersView / TaxpayerEditor / Field in bir-shell2.jsx.
 
 import { useEffect, useState } from "react";
-import { displayName, initials } from "../../lib/taxpayer";
+import { displayName, formatTin, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { Taxpayer, TaxpayerKind } from "../../types";
 import { Icon, SIco } from "../icons";
@@ -56,7 +56,7 @@ export function TaxpayersView({ route }: { route: Route }) {
                 </div>
                 <b className="s-tptile-name">{displayName(tp)}</b>
                 <div className="s-tptile-meta">
-                  TIN {tp.tin || "—"}
+                  TIN {formatTin(tp.tin) || "—"}
                   {tp.rdo ? " · RDO " + tp.rdo : ""}
                 </div>
                 <div className="s-tptile-meta">{[tp.city, tp.zip].filter(Boolean).join(" ")}</div>
@@ -155,7 +155,8 @@ function TaxpayerEditor({
       return;
     }
     setCorBusy(true);
-    const saved = repo.taxpayers.save(f as Taxpayer);
+    // Store the TIN as plain 9 digits (dashes are display-only).
+    const saved = repo.taxpayers.save({ ...f, tin: normalizeTin(f.tin) } as Taxpayer);
     try {
       if (corFile && repo.supportsFiles) await repo.uploadCor(saved.id, corFile);
       onSaved();
@@ -223,7 +224,14 @@ function TaxpayerEditor({
           )}
 
           <div className="s-grid3">
-            <Field lbl="TIN" v={f.tin} on={(v) => upd("tin", v)} placeholder="000-000-000" />
+            <Field
+              lbl="TIN"
+              v={f.tin}
+              on={(v) => upd("tin", v)}
+              placeholder="000-000-000"
+              display={formatTin}
+              transform={normalizeTin}
+            />
             <Field lbl="Branch Code" v={f.branch} on={(v) => upd("branch", v)} placeholder="00000" />
             <Field lbl="RDO Code" v={f.rdo} on={(v) => upd("rdo", v)} placeholder="050" />
           </div>
@@ -339,6 +347,8 @@ function Field({
   up,
   type,
   opts,
+  display,
+  transform,
 }: {
   lbl: string;
   v?: string;
@@ -347,6 +357,10 @@ function Field({
   up?: boolean;
   type?: "text" | "date" | "select";
   opts?: string[];
+  /** Format the stored value for display (UI only, e.g. TIN dashes). */
+  display?: (v: string) => string;
+  /** Normalize typed input before it's stored (e.g. strip TIN dashes). */
+  transform?: (raw: string) => string;
 }) {
   return (
     <label className="s-field">
@@ -362,9 +376,9 @@ function Field({
       ) : (
         <input
           type={type === "date" ? "date" : "text"}
-          value={v || ""}
+          value={display ? display(v || "") : v || ""}
           placeholder={placeholder || ""}
-          onChange={(e) => on(e.target.value)}
+          onChange={(e) => on(transform ? transform(e.target.value) : e.target.value)}
           style={up ? { textTransform: "uppercase" } : undefined}
         />
       )}

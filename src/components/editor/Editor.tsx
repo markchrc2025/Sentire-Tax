@@ -6,7 +6,7 @@ import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { computeFor } from "../../lib/compute";
 import { compute1701A } from "../../lib/compute";
 import { build1701A, download as downloadXml, fileName } from "../../lib/xml/build1701A";
-import { displayName, initials } from "../../lib/taxpayer";
+import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FilingData, XmlExport } from "../../types";
 import { Icon, SIco, timeAgo } from "../icons";
@@ -118,7 +118,7 @@ export function Editor({
         <div className="s-ebar-title">
           <b>{meta?.name}</b>
           <i>
-            {displayName(tp)} · TIN {tp ? tp.tin : "—"}
+            {displayName(tp)} · TIN {tp ? formatTin(tp.tin) || "—" : "—"}
           </i>
         </div>
         {guidedSupported && (

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { CATALOG, CATEGORIES, FORM_COLOR } from "../../lib/catalog";
-import { displayName, initials } from "../../lib/taxpayer";
+import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FormCode } from "../../types";
 import { Icon, SIco } from "../icons";
@@ -75,7 +75,7 @@ export function NewFiling({
               <div className="s-tpcard-txt">
                 <b>{displayName(tp)}</b>
                 <i>
-                  TIN {tp.tin || "—"} · {tp.kind === "individual" ? "Individual" : "Non-Individual"}
+                  TIN {formatTin(tp.tin) || "—"} · {tp.kind === "individual" ? "Individual" : "Non-Individual"}
                 </i>
               </div>
               {tpId === tp.id && (
