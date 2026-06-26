@@ -30,6 +30,8 @@ export interface Repository {
   filings: FilingRepository;
   /** Load persisted data into the in-memory cache. Instant for localStorage. */
   hydrate(): Promise<void>;
+  /** Flush any pending (debounced) writes immediately. No-op for localStorage. */
+  flush(): Promise<void>;
   /** Wipe all data (used by dev tooling). */
   resetAll(): void;
 

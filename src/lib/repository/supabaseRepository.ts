@@ -4,7 +4,9 @@
 // hydrated once on login and serves reads from it. Writes update the cache
 // immediately and write through to Postgres (filing edits are debounced so a
 // keystroke doesn't fire a request each time). Row-Level Security scopes every
-// row to the signed-in user; `owner_id` is set server-side via `auth.uid()`.
+// row to the signed-in user; `owner_id` is filled server-side by the column
+// DEFAULT auth.uid() and enforced by RLS WITH CHECK — the client never sends it.
+// Write failures are surfaced via setErrorListener so they aren't silent.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Filing, FilingData, FormCode, Taxpayer, XmlExport } from "../../types";
@@ -12,6 +14,9 @@ import type { FilingRepository, Repository, TaxpayerRepository } from "./types";
 import { COR_BUCKET } from "../supabase/client";
 
 const FILING_SAVE_DEBOUNCE_MS = 600;
+const EXPORTS_CAP = 12;
+const COR_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const COR_ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 
 // ---------- row <-> domain mapping ----------
 type Row = Record<string, unknown>;
@@ -51,10 +56,11 @@ function rowToTaxpayer(r: Row): Taxpayer {
   };
 }
 
-function taxpayerToRow(tp: Taxpayer, ownerId: string): Row {
+// owner_id is intentionally omitted — the column DEFAULT auth.uid() fills it on
+// insert and RLS WITH CHECK enforces it; on update it is left unchanged.
+function taxpayerToRow(tp: Taxpayer): Row {
   return {
     id: tp.id,
-    owner_id: ownerId,
     kind: tp.kind,
     reg_name: tp.regName ?? "",
     last_name: tp.lastName ?? "",
@@ -87,20 +93,17 @@ function rowToFiling(r: Row, exportRows: Row[]): Filing {
     status: r.status === "filed" ? "filed" : "draft",
     period: s(r.period),
     data: (r.data as FilingData) ?? {},
-    exports: exportRows.map((e) => ({
-      at: toMs(e.created_at),
-      filename: s(e.filename),
-      xml: s(e.xml),
-    })),
+    exports: exportRows
+      .map((e) => ({ at: toMs(e.created_at), filename: s(e.filename), xml: s(e.xml) }))
+      .slice(0, EXPORTS_CAP),
     createdAt: toMs(r.created_at),
     updatedAt: toMs(r.updated_at),
   };
 }
 
-function filingToRow(f: Filing, ownerId: string): Row {
+function filingToRow(f: Filing): Row {
   return {
     id: f.id,
-    owner_id: ownerId,
     taxpayer_id: f.taxpayerId,
     form: f.form,
     status: f.status,
@@ -118,14 +121,22 @@ export class SupabaseRepository implements Repository {
   private taxpayersMap: Record<string, Taxpayer> = {};
   private filingsMap: Record<string, Filing> = {};
   private filingTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  private errorCb?: (message: string) => void;
 
   constructor(
     private sb: SupabaseClient,
     private ownerId: string,
   ) {}
 
+  /** Subscribe to background write failures so they can be surfaced in the UI. */
+  setErrorListener(cb: (message: string) => void): void {
+    this.errorCb = cb;
+  }
+
   private report(context: string, error: unknown): void {
-    if (error) console.error("[supabase] " + context, error);
+    if (!error) return;
+    console.error("[supabase] " + context, error);
+    this.errorCb?.("Couldn't sync your latest change to the cloud — check your connection. It may not be saved.");
   }
 
   async hydrate(): Promise<void> {
@@ -134,9 +145,12 @@ export class SupabaseRepository implements Repository {
       this.sb.from("filings").select("*"),
       this.sb.from("filing_exports").select("*").order("created_at", { ascending: false }),
     ]);
-    this.report("hydrate taxpayers", tpRes.error);
-    this.report("hydrate filings", flRes.error);
-    this.report("hydrate exports", exRes.error);
+    // A failure loading the core tables means the session/token is bad or the
+    // network is down — throw so the provider can show a retry screen instead
+    // of rendering a misleading "empty account".
+    if (tpRes.error) throw tpRes.error;
+    if (flRes.error) throw flRes.error;
+    if (exRes.error) console.error("[supabase] hydrate exports", exRes.error);
 
     const exportsByFiling: Record<string, Row[]> = {};
     for (const e of (exRes.data as Row[]) ?? []) {
@@ -156,6 +170,23 @@ export class SupabaseRepository implements Repository {
     }
   }
 
+  /** Immediately write any pending (debounced) filing edits. Call before
+   *  sign-out / unload so the last keystroke isn't lost. */
+  async flush(): Promise<void> {
+    const ids = Object.keys(this.filingTimers);
+    const writes = ids.map((id) => {
+      clearTimeout(this.filingTimers[id]);
+      delete this.filingTimers[id];
+      const f = this.filingsMap[id];
+      if (!f) return Promise.resolve();
+      return this.sb
+        .from("filings")
+        .upsert(filingToRow(f))
+        .then(({ error }) => this.report("save filing", error));
+    });
+    await Promise.all(writes);
+  }
+
   taxpayers: TaxpayerRepository = {
     all: () =>
       Object.values(this.taxpayersMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
@@ -167,14 +198,23 @@ export class SupabaseRepository implements Repository {
       this.taxpayersMap[tp.id] = tp;
       this.sb
         .from("taxpayers")
-        .upsert(taxpayerToRow(tp, this.ownerId))
+        .upsert(taxpayerToRow(tp))
         .then(({ error }) => this.report("save taxpayer", error));
       return tp;
     },
     remove: (id) => {
+      const tp = this.taxpayersMap[id];
+      const corPath = tp?.corPath;
       delete this.taxpayersMap[id];
       for (const f of Object.values(this.filingsMap)) {
         if (f.taxpayerId === id) delete this.filingsMap[f.id];
+      }
+      // Storage has no FK cascade — clean up the COR object explicitly.
+      if (corPath) {
+        this.sb.storage
+          .from(COR_BUCKET)
+          .remove([corPath])
+          .then(({ error }) => this.report("remove cor", error));
       }
       this.sb
         .from("taxpayers")
@@ -203,9 +243,10 @@ export class SupabaseRepository implements Repository {
         updatedAt: now,
       };
       this.filingsMap[f.id] = f;
+      // upsert (not insert) so it's idempotent with a quick first edit.
       this.sb
         .from("filings")
-        .insert(filingToRow(f, this.ownerId))
+        .upsert(filingToRow(f))
         .then(({ error }) => this.report("create filing", error));
       return f;
     },
@@ -218,7 +259,7 @@ export class SupabaseRepository implements Repository {
         delete this.filingTimers[f.id];
         this.sb
           .from("filings")
-          .upsert(filingToRow(f, this.ownerId))
+          .upsert(filingToRow(f))
           .then(({ error }) => this.report("save filing", error));
       }, FILING_SAVE_DEBOUNCE_MS);
       return f;
@@ -238,16 +279,10 @@ export class SupabaseRepository implements Repository {
     addExport: (filingId, record: XmlExport) => {
       const f = this.filingsMap[filingId];
       if (!f) return;
-      f.exports = [record, ...(f.exports || [])].slice(0, 12);
+      f.exports = [record, ...(f.exports || [])].slice(0, EXPORTS_CAP);
       this.sb
         .from("filing_exports")
-        .insert({
-          id: uid(),
-          owner_id: this.ownerId,
-          filing_id: filingId,
-          filename: record.filename,
-          xml: record.xml,
-        })
+        .insert({ id: uid(), filing_id: filingId, filename: record.filename, xml: record.xml })
         .then(({ error }) => this.report("add export", error));
     },
   };
@@ -258,10 +293,16 @@ export class SupabaseRepository implements Repository {
   }
 
   async uploadCor(taxpayerId: string, file: File): Promise<void> {
+    if (file.size > COR_MAX_BYTES) {
+      throw new Error("File is too large — the maximum COR size is 10 MB.");
+    }
+    if (!COR_ALLOWED_TYPES.includes(file.type)) {
+      throw new Error("Unsupported file type. Please upload a PDF, PNG, JPEG, or WebP.");
+    }
     const path = this.corPathFor(taxpayerId);
     const { error } = await this.sb.storage
       .from(COR_BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" });
+      .upload(path, file, { upsert: true, contentType: file.type });
     if (error) throw error;
     const tp = this.taxpayersMap[taxpayerId];
     if (tp) {

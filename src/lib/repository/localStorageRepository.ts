@@ -167,6 +167,11 @@ export class LocalStorageRepository implements Repository {
     return Promise.resolve();
   }
 
+  // Writes are synchronous and already persisted — nothing to flush.
+  flush(): Promise<void> {
+    return Promise.resolve();
+  }
+
   // File attachments require object storage — unsupported in local mode.
   readonly supportsFiles = false;
   async uploadCor(): Promise<void> {

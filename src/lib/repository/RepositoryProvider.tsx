@@ -3,7 +3,9 @@
 // Two modes, chosen at module load from the presence of Supabase env vars:
 //   • "local"  → LocalStorageRepository (no login).
 //   • "cloud"  → Supabase: requires a signed-in user (shows <Login/> otherwise),
-//                then hydrates a SupabaseRepository scoped to that user.
+//                then hydrates a SupabaseRepository scoped to that user. A hydrate
+//                failure shows a retry screen (never a misleading empty account),
+//                and background write failures surface as a banner.
 // `refresh()` re-renders consumers after a mutation (the repos are cache-backed).
 
 import {
@@ -12,6 +14,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -21,7 +24,7 @@ import { getRepository } from "./localStorageRepository";
 import { SupabaseRepository } from "./supabaseRepository";
 import { supabase, supabaseConfigured } from "../supabase/client";
 import { Login } from "../../components/auth/Login";
-import { Mark } from "../../components/icons";
+import { Icon, Mark, SIco } from "../../components/icons";
 
 export type RepositoryMode = "local" | "cloud";
 
@@ -36,11 +39,11 @@ interface RepositoryContextValue {
 
 const RepositoryContext = createContext<RepositoryContextValue | null>(null);
 
-function Splash({ label }: { label: string }) {
+function Splash({ label, children }: { label: string; children?: ReactNode }) {
   return (
     <div className="s-splash">
       <Mark size={40} />
-      <div className="s-spinner" />
+      {children ?? <div className="s-spinner" />}
       <p>{label}</p>
     </div>
   );
@@ -67,49 +70,77 @@ function LocalProvider({ children }: { children: ReactNode }) {
   return <RepositoryContext.Provider value={value}>{children}</RepositoryContext.Provider>;
 }
 
+type HydrateState = "loading" | "ready" | "error";
+
 function CloudProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = loading
   const [repo, setRepo] = useState<SupabaseRepository | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrate, setHydrate] = useState<HydrateState>("loading");
+  const [attempt, setAttempt] = useState(0);
   const [revision, setRevision] = useState(0);
+  const [writeError, setWriteError] = useState<string | null>(null);
   const refresh = useCallback(() => setRevision((r) => r + 1), []);
+  const repoRef = useRef<SupabaseRepository | null>(null);
 
+  // Track the session.
   useEffect(() => {
     let mounted = true;
     supabase!.auth.getSession().then(({ data }) => {
       if (mounted) setSession(data.session);
     });
-    const { data: sub } = supabase!.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: sub } = supabase!.auth.onAuthStateChange((_event, sess) => setSession(sess));
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
   }, []);
 
+  // Build + hydrate the repository for the current user.
   const userId = session?.user?.id;
   useEffect(() => {
     if (!userId) {
       setRepo(null);
-      setHydrated(false);
+      repoRef.current = null;
+      setHydrate("loading");
       return;
     }
     let active = true;
     const r = new SupabaseRepository(supabase!, userId);
-    setHydrated(false);
+    r.setErrorListener((msg) => setWriteError(msg));
+    setHydrate("loading");
     r.hydrate()
-      .catch((e) => console.error("[supabase] hydrate failed", e))
-      .finally(() => {
-        if (active) {
-          setRepo(r);
-          setHydrated(true);
-        }
+      .then(() => {
+        if (!active) return;
+        repoRef.current = r;
+        setRepo(r);
+        setHydrate("ready");
+      })
+      .catch((e) => {
+        console.error("[supabase] hydrate failed", e);
+        if (active) setHydrate("error");
       });
     return () => {
       active = false;
+      // Persist any pending edits before this repo instance is discarded.
+      void r.flush();
     };
-  }, [userId]);
+  }, [userId, attempt]);
+
+  // Flush pending writes if the tab is closed/hidden.
+  useEffect(() => {
+    const flush = () => {
+      void repoRef.current?.flush();
+    };
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.removeEventListener("beforeunload", flush);
+    };
+  }, []);
 
   const signOut = useCallback(async () => {
+    await repoRef.current?.flush();
     await supabase!.auth.signOut();
   }, []);
 
@@ -127,9 +158,36 @@ function CloudProvider({ children }: { children: ReactNode }) {
 
   if (session === undefined) return <Splash label="Loading…" />;
   if (!session) return <Login />;
-  if (!repo || !hydrated) return <Splash label="Loading your data…" />;
+  if (hydrate === "error") {
+    return (
+      <Splash label="Couldn't load your data. Check your connection and try again.">
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="s-btn s-btn-primary" onClick={() => setAttempt((a) => a + 1)}>
+            Retry
+          </button>
+          <button className="s-btn" onClick={() => supabase!.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
+      </Splash>
+    );
+  }
+  if (!repo || hydrate !== "ready") return <Splash label="Loading your data…" />;
 
-  return <RepositoryContext.Provider value={value}>{children}</RepositoryContext.Provider>;
+  return (
+    <RepositoryContext.Provider value={value}>
+      {children}
+      {writeError && (
+        <div className="s-errbar" role="alert">
+          <Icon d={SIco.warn} size={16} />
+          <span>{writeError}</span>
+          <button className="s-errbar-x" onClick={() => setWriteError(null)} aria-label="Dismiss">
+            <Icon d={SIco.x} size={14} />
+          </button>
+        </div>
+      )}
+    </RepositoryContext.Provider>
+  );
 }
 
 export function useRepository(): RepositoryContextValue {

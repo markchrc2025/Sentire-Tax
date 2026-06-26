@@ -155,13 +155,18 @@ function TaxpayerEditor({
       return;
     }
     setCorBusy(true);
+    const saved = repo.taxpayers.save(f as Taxpayer);
     try {
-      const saved = repo.taxpayers.save(f as Taxpayer);
       if (corFile && repo.supportsFiles) await repo.uploadCor(saved.id, corFile);
       onSaved();
     } catch (e) {
-      alert("Could not upload the COR file: " + (e instanceof Error ? e.message : String(e)));
-      setCorBusy(false);
+      // The taxpayer itself is already saved; only the COR upload failed.
+      alert(
+        "The taxpayer was saved, but the COR file could not be uploaded: " +
+          (e instanceof Error ? e.message : String(e)) +
+          "\nYou can re-open the taxpayer to attach it.",
+      );
+      onSaved();
     }
   }
 
