@@ -118,6 +118,18 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
             ]}
           />
         </Q>
+        <Q
+          item="Item 13"
+          label="Are you claiming Foreign Tax Credits?"
+          help="Credits for income taxes you already paid to a foreign country."
+        >
+          <YesNo field="foreignCredit" />
+        </Q>
+        {data.foreignCredit === "yes" && (
+          <Q item="Item 14" label="Foreign Tax Number" req>
+            <Txt field="foreignTaxNo" up maxw={260} />
+          </Q>
+        )}
         <Q item="Item 16" label="Civil Status">
           <Cards
             field="civil"
@@ -131,13 +143,29 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
           />
         </Q>
         {married && (
-          <Q
-            item="Item 17"
-            label="Does your spouse also earn income?"
-            help="If yes, you’ll be able to enter the spouse’s figures alongside yours."
-          >
-            <YesNo field="spouseIncome" />
-          </Q>
+          <>
+            <Q
+              item="Item 17"
+              label="Does your spouse also earn income?"
+              help="If yes, you’ll be able to enter the spouse’s figures alongside yours."
+            >
+              <YesNo field="spouseIncome" />
+            </Q>
+            <Q
+              item="Item 18"
+              label="Filing Status"
+              help="Married couples file jointly on one return, or separately."
+            >
+              <Cards
+                field="filing"
+                cols={2}
+                options={[
+                  { val: "joint", title: "Joint Filing" },
+                  { val: "separate", title: "Separate Filing" },
+                ]}
+              />
+            </Q>
+          </>
         )}
       </>
     ),

@@ -67,6 +67,27 @@ describe("1701A — 8% eligibility and installment rules", () => {
   });
 });
 
+describe("1701A — conditional Part I fields", () => {
+  it("warns for a missing Foreign Tax Number when foreign credits are claimed (Item 13/14)", () => {
+    const items = run("1701A", { year: "2024", taxRate: "graduated", atc: "II012", foreignCredit: "yes" });
+    expect(has(items, "warn", /Foreign Tax Number/)).toBe(true);
+  });
+  it("does not warn once the Foreign Tax Number is supplied", () => {
+    const items = run("1701A", {
+      year: "2024",
+      taxRate: "graduated",
+      atc: "II012",
+      foreignCredit: "yes",
+      foreignTaxNo: "FT-12345",
+    });
+    expect(has(items, "warn", /Foreign Tax Number/)).toBe(false);
+  });
+  it("warns a married filer to choose a filing status (Item 18)", () => {
+    const items = run("1701A", { year: "2024", taxRate: "graduated", atc: "II012", civil: "married" });
+    expect(has(items, "warn", /filing status/i)).toBe(true);
+  });
+});
+
 describe("1701Q — quarter and 8% rules", () => {
   it("warns that there is no 4th-quarter 1701Q", () => {
     const items = run("1701Q", { year: "2024" }, { period: "2024-Q4" });
