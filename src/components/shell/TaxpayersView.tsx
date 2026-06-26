@@ -165,8 +165,20 @@ function TaxpayerEditor({
       return;
     }
     setCorBusy(true);
-    // Store the TIN as plain 9 digits (dashes are display-only).
-    const saved = repo.taxpayers.save({ ...f, tin: normalizeTin(f.tin) } as Taxpayer);
+    // The UI shows the name/address fields in caps (textTransform), so store
+    // them in caps too. TIN is stored as plain 9 digits (dashes are display-only).
+    const up = (s?: string) => (s ? s.toUpperCase() : s);
+    const saved = repo.taxpayers.save({
+      ...f,
+      tin: normalizeTin(f.tin),
+      regName: up(f.regName),
+      lastName: up(f.lastName),
+      firstName: up(f.firstName),
+      middleName: up(f.middleName),
+      address: up(f.address),
+      city: up(f.city),
+      citizenship: up(f.citizenship),
+    } as Taxpayer);
     try {
       if (corFile && repo.supportsFiles) await repo.uploadCor(saved.id, corFile);
       onSaved();
