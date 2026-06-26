@@ -30,3 +30,8 @@ export const CATEGORIES: readonly FormCategory[] = [
 export function catalogEntry(code: FormCode): CatalogEntry | undefined {
   return CATALOG.find((c) => c.code === code);
 }
+
+/** Type guard: is this string one of the nine supported form codes? */
+export function isFormCode(v: string | undefined): v is FormCode {
+  return !!v && CATALOG.some((c) => c.code === v);
+}

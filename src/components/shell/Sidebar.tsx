@@ -1,19 +1,24 @@
-// Sidebar.tsx — fixed nav rail. Ported from Sidebar in bir-shell.jsx.
+// Sidebar.tsx — fixed nav rail with URL-based active state.
 
+import { NavLink, useLocation } from "react-router-dom";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
-import { Icon, Mark, SIco, type IconName } from "../icons";
 import { initials } from "../../lib/taxpayer";
-import type { Route, SetRoute, View } from "../route";
+import { Icon, Mark, SIco, type IconName } from "../icons";
 
-const NAV: Array<{ id: View; label: string; icon: IconName }> = [
-  { id: "dashboard", label: "Filings", icon: "grid" },
-  { id: "new", label: "New Form", icon: "plus" },
-  { id: "taxpayers", label: "Taxpayers", icon: "users" },
+const NAV: Array<{ to: string; label: string; icon: IconName }> = [
+  { to: "/filings", label: "Filings", icon: "grid" },
+  { to: "/new", label: "New Form", icon: "plus" },
+  { to: "/taxpayers", label: "Taxpayers", icon: "users" },
 ];
 
-export function Sidebar({ route, setRoute }: { route: Route; setRoute: SetRoute }) {
+const TOP_LEVEL = ["/", "/filings", "/new", "/taxpayers"];
+
+export function Sidebar() {
   const { mode, userEmail, signOut } = useRepository();
-  const active: View = route.view === "editor" ? "dashboard" : route.view;
+  const { pathname } = useLocation();
+  // Editor routes (/:form/:period/:tin) keep "Filings" highlighted.
+  const onEditor = !TOP_LEVEL.includes(pathname);
+
   return (
     <aside className="s-side">
       <div className="s-brand">
@@ -27,14 +32,16 @@ export function Sidebar({ route, setRoute }: { route: Route; setRoute: SetRoute 
       </div>
       <nav className="s-nav">
         {NAV.map((n) => (
-          <button
-            key={n.id}
-            className={"s-navitem" + (active === n.id ? " on" : "")}
-            onClick={() => setRoute({ view: n.id })}
+          <NavLink
+            key={n.to}
+            to={n.to}
+            className={({ isActive }) =>
+              "s-navitem" + (isActive || (onEditor && n.to === "/filings") ? " on" : "")
+            }
           >
             <Icon d={SIco[n.icon]} size={18} />
             <span>{n.label}</span>
-          </button>
+          </NavLink>
         ))}
       </nav>
       <div className="s-side-foot">

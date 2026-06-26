@@ -1,23 +1,26 @@
-// Dashboard.tsx — saved-filings table. Ported from Dashboard in bir-shell.jsx.
+// Dashboard.tsx — saved-filings table. Rows link to /{form}/{period}/{tin}.
 
+import { useNavigate } from "react-router-dom";
 import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { fmtAmt } from "../../lib/format";
 import { headlineAmount } from "../../lib/summary";
-import { displayName } from "../../lib/taxpayer";
+import { displayName, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
+import type { Filing } from "../../types";
 import { Icon, SIco, timeAgo } from "../icons";
-import type { SetRoute } from "../route";
 
-export function Dashboard({
-  setRoute,
-  openFiling,
-}: {
-  setRoute: SetRoute;
-  openFiling: (id: string) => void;
-}) {
+export function Dashboard() {
   const { repo, refresh } = useRepository();
+  const navigate = useNavigate();
   const filings = repo.filings.all();
   const meta = (code: string) => CATALOG.find((c) => c.code === code);
+
+  const filingPath = (f: Filing): string => {
+    const tp = repo.taxpayers.get(f.taxpayerId);
+    const tin = normalizeTin(tp?.tin);
+    const period = f.period || (typeof f.data?.year === "string" ? f.data.year : "");
+    return `/${f.form}/${encodeURIComponent(period || "draft")}/${tin}`;
+  };
 
   return (
     <div className="s-page">
@@ -26,7 +29,7 @@ export function Dashboard({
           <h1>Filings</h1>
           <p>Every BIR form you&rsquo;ve generated, saved per taxpayer and period.</p>
         </div>
-        <button className="s-btn s-btn-primary" onClick={() => setRoute({ view: "new" })}>
+        <button className="s-btn s-btn-primary" onClick={() => navigate("/new")}>
           <Icon d={SIco.plus} size={16} />
           New Form
         </button>
@@ -39,7 +42,7 @@ export function Dashboard({
           </div>
           <h3>No filings yet</h3>
           <p>Generate your first BIR form — pick a form type and a taxpayer.</p>
-          <button className="s-btn s-btn-primary" onClick={() => setRoute({ view: "new" })}>
+          <button className="s-btn s-btn-primary" onClick={() => navigate("/new")}>
             <Icon d={SIco.plus} size={16} />
             New Form
           </button>
@@ -60,7 +63,7 @@ export function Dashboard({
             const amt = headlineAmount(f.form, f.data || {});
             const year = typeof f.data?.year === "string" ? f.data.year : "";
             return (
-              <div className="s-tr" key={f.id} onClick={() => openFiling(f.id)}>
+              <div className="s-tr" key={f.id} onClick={() => navigate(filingPath(f))}>
                 <div className="s-td-form">
                   <span
                     className="s-formchip"

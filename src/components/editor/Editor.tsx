@@ -2,6 +2,7 @@
 // export, autosave, and the summary rail. Ported from Editor in bir-shell2.jsx.
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { computeFor } from "../../lib/compute";
 import { compute1701A } from "../../lib/compute";
@@ -10,21 +11,15 @@ import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FilingData, XmlExport } from "../../types";
 import { Icon, SIco, timeAgo } from "../icons";
-import type { SetRoute } from "../route";
 import type { SetFn } from "../formkit";
 import { FormView } from "../forms";
 import { GuidedView } from "../guided";
 import { railSummary, SumRow } from "./railSummary";
 import { validateFor } from "./validators";
 
-export function Editor({
-  filingId,
-  setRoute,
-}: {
-  filingId: string;
-  setRoute: SetRoute;
-}) {
+export function Editor({ filingId }: { filingId: string }) {
   const { repo, refresh } = useRepository();
+  const navigate = useNavigate();
   const filing = repo.filings.get(filingId);
   const [data, setData] = useState<FilingData>(() => (filing ? { ...(filing.data || {}) } : {}));
   const [saved, setSaved] = useState(true);
@@ -50,7 +45,7 @@ export function Editor({
   if (!filing) {
     return (
       <div className="s-page">
-        <button className="s-btn" onClick={() => setRoute({ view: "dashboard" })}>
+        <button className="s-btn" onClick={() => navigate("/filings")}>
           <Icon d={SIco.back} size={16} />
           Back
         </button>
@@ -69,7 +64,8 @@ export function Editor({
     setData((d) => {
       const nd: FilingData = { ...d, [field]: val };
       filing.data = nd;
-      if (field === "year" && typeof val === "string") filing.period = val;
+      // period is fixed by the URL (/{form}/{period}/{tin}); the year field
+      // edits data.year for the printed form but never re-keys the filing.
       repo.filings.save(filing);
       return nd;
     });
@@ -109,7 +105,7 @@ export function Editor({
   return (
     <div className="s-editor">
       <div className="s-ebar">
-        <button className="s-iconbtn lg" onClick={() => setRoute({ view: "dashboard" })} title="Back to filings">
+        <button className="s-iconbtn lg" onClick={() => navigate("/filings")} title="Back to filings">
           <Icon d={SIco.back} size={18} />
         </button>
         <span className="s-formchip lg" style={{ ["--fc" as string]: (meta && FORM_COLOR[meta.cat]) || "#6B6259" }}>
@@ -273,7 +269,7 @@ export function Editor({
               </div>
               <button
                 className="s-btn s-btn-ghost full"
-                onClick={() => setRoute({ view: "taxpayers", editId: filing.taxpayerId })}
+                onClick={() => navigate("/taxpayers?edit=" + filing.taxpayerId)}
               >
                 <Icon d={SIco.edit} size={14} />
                 Edit taxpayer details
