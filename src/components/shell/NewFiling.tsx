@@ -1,32 +1,36 @@
-// NewFiling.tsx — pick a form + taxpayer, then generate a filing.
-// Ported from NewFiling in bir-shell.jsx.
+// NewFiling.tsx — pick a form + year + taxpayer, then open /{form}/{year}/{tin}.
 
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { CATALOG, CATEGORIES, FORM_COLOR } from "../../lib/catalog";
-import { displayName, formatTin, initials } from "../../lib/taxpayer";
+import { displayName, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FormCode } from "../../types";
 import { Icon, SIco } from "../icons";
-import type { SetRoute } from "../route";
 
-export function NewFiling({
-  setRoute,
-  newFiling,
-}: {
-  setRoute: SetRoute;
-  newFiling: (form: FormCode, taxpayerId: string) => void;
-}) {
+export function NewFiling() {
   const { repo } = useRepository();
+  const navigate = useNavigate();
   const [form, setForm] = useState<FormCode | null>(null);
   const [tpId, setTpId] = useState("");
+  const [year, setYear] = useState("");
   const taxpayers = repo.taxpayers.all();
+  const selectedTp = taxpayers.find((t) => t.id === tpId);
+  const tin = normalizeTin(selectedTp?.tin);
+  const tinMissing = Boolean(tpId && !tin);
+  const canGenerate = Boolean(form && tpId && year.trim() && tin);
+
+  function generate() {
+    if (!form || !tin || !year.trim()) return;
+    navigate(`/${form}/${encodeURIComponent(year.trim())}/${tin}`);
+  }
 
   return (
     <div className="s-page">
       <div className="s-head">
         <div>
           <h1>New Form</h1>
-          <p>Choose a BIR form, then the taxpayer it&rsquo;s for.</p>
+          <p>Choose a BIR form, the taxable year, then the taxpayer it&rsquo;s for.</p>
         </div>
       </div>
 
@@ -57,11 +61,19 @@ export function NewFiling({
       ))}
 
       <div className="s-step-lbl" style={{ marginTop: 8 }}>
-        2 · Select the taxpayer
+        2 · Taxable year / period
+      </div>
+      <label className="s-field" style={{ maxWidth: 220 }}>
+        <span>Year (or period, e.g. 2024 or 2024-Q1)</span>
+        <input value={year} placeholder="2024" onChange={(e) => setYear(e.target.value)} />
+      </label>
+
+      <div className="s-step-lbl" style={{ marginTop: 20 }}>
+        3 · Select the taxpayer
       </div>
       {taxpayers.length === 0 ? (
         <div className="s-inline-note">
-          No taxpayers yet. <a onClick={() => setRoute({ view: "taxpayers" })}>Add a taxpayer →</a>
+          No taxpayers yet. <Link to="/taxpayers">Add a taxpayer →</Link>
         </div>
       ) : (
         <div className="s-tplist">
@@ -75,7 +87,7 @@ export function NewFiling({
               <div className="s-tpcard-txt">
                 <b>{displayName(tp)}</b>
                 <i>
-                  TIN {formatTin(tp.tin) || "—"} · {tp.kind === "individual" ? "Individual" : "Non-Individual"}
+                  TIN {normalizeTin(tp.tin) || "—"} · {tp.kind === "individual" ? "Individual" : "Non-Individual"}
                 </i>
               </div>
               {tpId === tp.id && (
@@ -88,15 +100,18 @@ export function NewFiling({
         </div>
       )}
 
+      {tinMissing && (
+        <div className="s-inline-note" style={{ marginTop: 12 }}>
+          This taxpayer has no TIN yet — add one in <Link to="/taxpayers">Taxpayers</Link> first (the TIN is part of
+          the filing&rsquo;s address).
+        </div>
+      )}
+
       <div className="s-step-actions">
-        <button className="s-btn" onClick={() => setRoute({ view: "dashboard" })}>
+        <button className="s-btn" onClick={() => navigate("/filings")}>
           Cancel
         </button>
-        <button
-          className="s-btn s-btn-primary"
-          disabled={!form || !tpId}
-          onClick={() => form && tpId && newFiling(form, tpId)}
-        >
+        <button className="s-btn s-btn-primary" disabled={!canGenerate} onClick={generate}>
           Generate Form
           <Icon d={SIco.chevR} size={16} />
         </button>

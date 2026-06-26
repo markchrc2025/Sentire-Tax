@@ -2,20 +2,30 @@
 // Ported from TaxpayersView / TaxpayerEditor / Field in bir-shell2.jsx.
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { displayName, formatTin, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { Taxpayer, TaxpayerKind } from "../../types";
 import { Icon, SIco } from "../icons";
-import type { Route } from "../route";
 
 type TaxpayerDraft = Partial<Taxpayer> & { kind: TaxpayerKind };
 
-export function TaxpayersView({ route }: { route: Route }) {
+export function TaxpayersView() {
   const { repo, refresh } = useRepository();
-  const [edit, setEdit] = useState<Taxpayer | "new" | null>(() =>
-    route.editId ? repo.taxpayers.get(route.editId) : null,
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [edit, setEdit] = useState<Taxpayer | "new" | null>(() => {
+    const editId = searchParams.get("edit");
+    return editId ? repo.taxpayers.get(editId) : null;
+  });
   const list = repo.taxpayers.all();
+
+  function closeEditor() {
+    setEdit(null);
+    if (searchParams.has("edit")) {
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }
 
   return (
     <div className="s-page">
@@ -72,14 +82,14 @@ export function TaxpayersView({ route }: { route: Route }) {
       {edit && (
         <TaxpayerEditor
           tp={edit === "new" ? null : edit}
-          onClose={() => setEdit(null)}
+          onClose={closeEditor}
           onSaved={() => {
-            setEdit(null);
+            closeEditor();
             refresh();
           }}
           onDelete={(id) => {
             repo.taxpayers.remove(id);
-            setEdit(null);
+            closeEditor();
             refresh();
           }}
         />
