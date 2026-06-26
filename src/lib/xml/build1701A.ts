@@ -1,245 +1,184 @@
-// build1701A.ts — eBIRForms-format XML export for the 1701A.
-// Ported from bir-xml.jsx. Mirrors the official offline package:
-//   <?xml version='1.0'?> … <div>KEY=VALUEKEY=</div> … All Rights Reserved BIR 2012.
-// build1701A() is pure; download() is the only browser-dependent helper.
+// build1701A.ts — authentic eBIRForms XML export for BIR Form 1701A.
+// Field keys, namespace (frm1701A), and tail match the offline-package output
+// (verified against a real eBIRForms 1701A export). build1701A() is pure.
 
 import type { Filing, Taxpayer } from "../../types";
 import type { Comp1701A } from "../compute";
-import { num } from "../format";
+import { amt, dob, enc, parseYear, rb, tinParts, type XmlRow } from "./xmlkit";
 
-// URL-encode like eBIRForms (comma->%2C, space->%20). encodeURIComponent matches.
-export function enc(v: unknown): string {
-  if (v == null) return "";
-  return encodeURIComponent(String(v));
+const NS = "frm1701A:";
+
+/** Page-1 taxpayer name: "LAST, FIRST MIDDLE" (individuals) or registered name. */
+function fullName(tp: Taxpayer | null): string {
+  if (!tp) return "";
+  if (tp.kind === "individual")
+    return [tp.lastName, [tp.firstName, tp.middleName].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  return tp.regName || "";
 }
 
-// amount -> "1,234,567.00"
-export function amt(n: unknown): string {
-  const v = num(n);
-  return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-const rb = (cond: boolean): string => (cond ? "true" : "false");
-
-// ISO yyyy-mm-dd -> MM/DD/YYYY
-function dob(iso?: string): string {
-  if (!iso) return "";
-  const p = String(iso).split("-");
-  if (p.length === 3) return p[1] + "/" + p[2] + "/" + p[0];
-  return iso;
-}
-
-export function tinParts(tp: Taxpayer | null) {
-  const d = String((tp && tp.tin) || "").replace(/\D/g, "");
-  return {
-    t1: d.slice(0, 3),
-    t2: d.slice(3, 6),
-    t3: d.slice(6, 9),
-    branch: String((tp && tp.branch) || "000")
-      .replace(/\D/g, "")
-      .padStart(3, "0")
-      .slice(0, 5),
-  };
-}
-
-export function parseYear(y: unknown): { mm: string; yyyy: string } {
-  const s = String(y || "");
-  if (s.includes("/")) {
-    const [m, yr] = s.split("/");
-    return { mm: (m || "12").padStart(2, "0"), yyyy: yr || "" };
-  }
-  return { mm: "12", yyyy: s.slice(0, 4) };
-}
-
-/** Build the 1701A eBIRForms XML string. ns = "frm1701A". */
+/** Build the authentic 1701A eBIRForms XML string. */
 export function build1701A(filing: Filing, tp: Taxpayer | null, comp: Comp1701A): string {
   const d = filing.data || {};
-  const ns = "frm1701A";
   const t = tinParts(tp);
   const yr = parseYear(d.year);
-  const name = tp
-    ? tp.kind === "individual"
-      ? [tp.lastName, tp.firstName, tp.middleName].filter(Boolean).join(", ")
-      : tp.regName || ""
-    : "";
-  const lastName = tp ? (tp.kind === "individual" ? tp.lastName : tp.regName) : "";
   const rate = (d.taxRate as string) || "graduated";
-  const rows: Array<[string, string]> = [];
-  const put = (key: string, val: unknown, raw?: boolean) =>
-    rows.push([ns + ":" + key, raw ? (val == null ? "" : String(val)) : enc(val)]);
-  const putRaw = (key: string, val: unknown) =>
-    rows.push([key, val == null ? "" : String(val)]); // global (no ns) fields, raw
-
-  // ---- Part I: Background ----
-  put("txtPg1I1Year", yr.yyyy);
-  put("rdoPg1I2AmendedYes", rb(d.amended === "yes"), true);
-  put("rdoPg1I2AmendedNo", rb(d.amended !== "yes"), true);
-  put("rdoPg1I3ShortPeriodYes", rb(d.shortPeriod === "yes"), true);
-  put("rdoPg1I3ShortPeriodNo", rb(d.shortPeriod !== "yes"), true);
-  put("txtPg1I4TIN1", t.t1);
-  put("txtPg1I4TIN2", t.t2);
-  put("txtPg1I4TIN3", t.t3);
-  put("txtPg1I4BranchCode", t.branch);
-  put("txtPg1I5RDOCode", (tp && tp.rdo) || "");
-  put("rdoPg1I6TaxpayerTypeS", rb(d.taxpayerType === "single"), true);
-  put("rdoPg1I6TaxpayerTypeP", rb(d.taxpayerType === "prof"), true);
-  put("rdoPg1I7ATC_II012", rb(d.atc === "II012"), true);
-  put("rdoPg1I7ATC_II014", rb(d.atc === "II014"), true);
-  put("rdoPg1I7ATC_II015", rb(d.atc === "II015"), true);
-  put("rdoPg1I7ATC_II017", rb(d.atc === "II017"), true);
-  put("txtPg1I8TaxpayerName", name);
-  put("txtPg1I9Address", tp ? [tp.address, tp.city].filter(Boolean).join(" ") : "");
-  put("txtPg1I9AZipCode", (tp && tp.zip) || "");
-  put("txtPg1I10BirthDate", dob(tp ? tp.birthdate : ""));
-  putRaw("txtEmail", (tp && tp.email) || ""); // email kept raw, global key (matches sample)
-  put("txtPg1I12Citizenship", (tp && tp.citizenship) || "");
-  put("rdoPg1I13ForeignTaxCreditsYes", rb(d.foreignCredit === "yes"), true);
-  put("rdoPg1I13ForeignTaxCreditsNo", rb(d.foreignCredit !== "yes"), true);
-  put("txtPg1I14ForeignTaxNumber", d.foreignTaxNo || "");
-  put("txtPg1I15TelNum", (tp && tp.phone) || "");
-  put("rdoPg1I16CivilStatusS", rb(d.civil === "single"), true);
-  put("rdoPg1I16CivilStatusM", rb(d.civil === "married"), true);
-  put("rdoPg1I16CivilStatusLS", rb(d.civil === "sep"), true);
-  put("rdoPg1I16CivilStatusW", rb(d.civil === "widow"), true);
-  put("rdoPg1I17SpouseIncomeYes", rb(d.spouseIncome === "yes"), true);
-  put("rdoPg1I17SpouseIncomeNo", rb(d.spouseIncome === "no"), true);
-  put("rdoPg1I18FilingStatusJ", rb(d.filing === "joint"), true);
-  put("rdoPg1I18FilingStatusS", rb(d.filing === "separate"), true);
-  put("rdoPg1I19TaxRateG", rb(rate === "graduated"), true);
-  put("rdoPg1I19AMethodDeductionO", rb(rate === "graduated"), true);
-  put("rdoPg1I19TaxRate8", rb(rate === "eight"), true);
-
-  // ---- Part II: Total Tax Payable (items 20-31) ----
   const A = comp.A;
   const B = comp.B;
-  put("txtPg1I20ATaxDue", amt(A.i20), true);
-  put("txtPg1I20BTaxDue", amt(B.i20), true);
-  put("txtPg1I21ATaxCredits", amt(A.i21), true);
-  put("txtPg1I21BTaxCredits", amt(B.i21), true);
-  put("txtPg1I22ANetTaxPayable", amt(A.i22), true);
-  put("txtPg1I22BNetTaxPayable", amt(B.i22), true);
-  put("txtPg1I23A", amt(A.i23), true);
-  put("txtPg1I23B", amt(B.i23), true);
-  put("txtPg1I24ATaxPayable", amt(A.i24), true);
-  put("txtPg1I24BTaxPayable", amt(B.i24), true);
-  put("txtPg1I25ASurcharge", amt(A.i25), true);
-  put("txtPg1I25BSurcharge", amt(B.i25), true);
-  put("txtPg1I26AInterest", amt(A.i26), true);
-  put("txtPg1I26BInterest", amt(B.i26), true);
-  put("txtPg1I27ACompromise", amt(A.i27), true);
-  put("txtPg1I27BCompromise", amt(B.i27), true);
-  put("txtPg1I28ATotalPenalties", amt(A.i28), true);
-  put("txtPg1I28BTotalPenalties", amt(B.i28), true);
-  put("txtPg1I29ATotalAmtPyble", amt(A.i29), true);
-  put("txtPg1I29BTotalAmtPyble", amt(B.i29), true);
-  put("txtPg1I30AggregateAmtPyble", amt(comp.i30), true);
-  put("rdoPg1OverpaymentRefund", rb(d.over === "refund"), true);
-  put("rdoPg1OverpaymentTCC", rb(d.over === "tcc"), true);
-  put("rdoPg1OverpaymentCarryOver", rb(d.over === "carry"), true);
-  put("txtPg1I31NumberOfAttachments", String(d.attachments || "00").padStart(2, "0"));
+
+  const rows: XmlRow[] = [];
+  /** namespaced field, value emitted verbatim (pre-formatted). */
+  const P = (key: string, val: string) => rows.push([NS + key, val]);
+  /** global field (no namespace), verbatim. */
+  const G = (key: string, val: string) => rows.push([key, val]);
+
+  // ---- Background ----
+  P("txtMonth", yr.mm);
+  P("txtYear", yr.yyyy);
+  P("optAmendedReturn_1", rb(d.amended === "yes"));
+  P("optAmendedReturn_2", rb(d.amended !== "yes"));
+  P("optShortPeriod_1", rb(d.shortPeriod === "yes"));
+  P("optShortPeriod_2", rb(d.shortPeriod !== "yes"));
+  P("txtTIN1", t.t1);
+  P("txtTIN2", t.t2);
+  P("txtTIN3", t.t3);
+  P("txtBranchCode", t.branch3);
+  P("txtRDOCode", (tp && tp.rdo) || "");
+  P("optTaxType_1", rb(d.taxpayerType === "single"));
+  P("optTaxType_2", rb(d.taxpayerType === "prof"));
+  P("optATC_1", rb(d.atc === "II012"));
+  P("optATC_2", rb(d.atc === "II014"));
+  P("optATC_3", rb(d.atc === "II015"));
+  P("optATC_4", rb(d.atc === "II017"));
+  P("txtTaxpayerName", enc(fullName(tp)));
+  P("txtAddress", enc(tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""));
+  P("txtZipCode", (tp && tp.zip) || "");
+  P("txtBirthDate", dob(tp ? tp.birthdate : ""));
+  G("txtEmail", (tp && tp.email) || ""); // email is a global (un-namespaced) field
+  P("txtCitizenship", (tp && tp.citizenship) || "");
+  P("optForeignTaxCredits_1", rb(d.foreignCredit === "yes"));
+  P("optForeignTaxCredits_2", rb(d.foreignCredit !== "yes"));
+  P("txtForeignTaxNumber", enc(d.foreignTaxNo));
+  P("txtTelNum", (tp && tp.phone) || "");
+  P("optCivilStatus_1", rb(d.civil === "single"));
+  P("optCivilStatus_2", rb(d.civil === "married"));
+  P("optCivilStatus_3", rb(d.civil === "sep"));
+  P("optCivilStatus_4", rb(d.civil === "widow"));
+  P("optSpouseIncome_1", rb(d.spouseIncome === "yes"));
+  P("optSpouseIncome_2", rb(d.spouseIncome === "no"));
+  P("optFilingStatus_1", rb(d.filing === "joint"));
+  P("optFilingStatus_2", rb(d.filing === "separate"));
+  P("optTaxRate_1", rb(rate !== "eight"));
+  P("optTaxRate_2", rb(rate === "eight"));
+
+  // ---- Part II: Total Tax Payable (items 20-30) ----
+  for (let i = 20; i <= 29; i++) {
+    P(`txt${i}A`, amt(A[("i" + i) as keyof typeof A]));
+    P(`txt${i}B`, amt(B[("i" + i) as keyof typeof B]));
+  }
+  P("txt30", amt(comp.i30));
+  P("optRefund_1", rb(d.over === "refund"));
+  P("optRefund_2", rb(d.over === "tcc"));
+  P("optRefund_3", rb(d.over === "carry"));
+  P("txtNumberAttachments", String(d.attachments || "0"));
 
   // ---- Part III: Details of Payment (items 32-35) ----
-  const pay: Array<[string, string]> = [
-    ["32", "p32"],
-    ["33", "p33"],
-    ["34", "p34"],
-    ["35", "p35"],
-  ];
-  pay.forEach(([no, k]) => {
-    put("txtPg1I" + no + "Agency", d[k + "bank"] || "");
-    put("txtPg1I" + no + "Number", d[k + "num"] || "");
-    put("txtPg1I" + no + "Date", d[k + "date"] || "");
-    put("txtPg1I" + no + "Amount", d[k + "amt"] ? amt(d[k + "amt"]) : "", true);
-  });
+  const payAmt = (k: string) => (d[k] ? amt(d[k]) : "");
+  P("txtAgency32", enc(d.p32bank));
+  P("txtNumber32", enc(d.p32num));
+  P("txtDate32", enc(d.p32date));
+  P("txtAmount32", payAmt("p32amt"));
+  P("txtAgency33", enc(d.p33bank));
+  P("txtNumber33", enc(d.p33num));
+  P("txtDate33", enc(d.p33date));
+  P("txtAmount33", payAmt("p33amt"));
+  P("txtNumber34", enc(d.p34num));
+  P("txtDate34", enc(d.p34date));
+  P("txtAmount34", payAmt("p34amt"));
+  P("txtParticular35", enc(d.p35particular));
+  P("txtAgency35", enc(d.p35bank));
+  P("txtNumber35", enc(d.p35num));
+  P("txtDate35", enc(d.p35date));
+  P("txtAmount35", payAmt("p35amt"));
 
   // ---- Page 2 header ----
-  put("txtPg2TIN1", t.t1);
-  put("txtPg2TIN2", t.t2);
-  put("txtPg2TIN3", t.t3);
-  put("txtPg2BranchCode", t.branch);
-  put("txtPg2TaxpayerName", lastName);
+  P("txtPg2TIN1", t.t1);
+  P("txtPg2TIN2", t.t2);
+  P("txtPg2TIN3", t.t3);
+  P("txtPg2BranchCode", t.branch3);
+  P("txtPg2TaxpayerName", tp ? (tp.kind === "individual" ? tp.lastName : tp.regName) || "" : "");
 
-  // ---- Part IV.A: Graduated/OSD (items 36-46) ----
-  const g: Array<[string, keyof typeof A]> = [
-    ["36", "i36"], ["37", "i37"], ["38", "i38"], ["39", "i39"], ["40", "i40"],
-    ["41", "i41"], ["42", "i42"], ["43", "i43"], ["44", "i44"], ["45", "i45"], ["46", "i46"],
-  ];
-  g.forEach(([no, k]) => {
-    put("txtPg2I" + no + "A", amt(A[k]), true);
-    put("txtPg2I" + no + "B", amt(B[k]), true);
-  });
-  put("txtPg2I41Desc", d.i41label || "");
-  put("txtPg2I42Desc", d.i42label || "");
+  // ---- Part IV: items 36-65 (A = filer, B = spouse), with description lines ----
+  const descFields: Record<number, string> = { 41: "i41label", 42: "i42label", 50: "i50label", 51: "i51label", 63: "i63label" };
+  for (let i = 36; i <= 65; i++) {
+    if (descFields[i]) P(`txt${i}Desc`, enc(d[descFields[i]]));
+    P(`txt${i}A`, amt(A[("i" + i) as keyof typeof A]));
+    P(`txt${i}B`, amt(B[("i" + i) as keyof typeof B]));
+  }
 
-  // ---- Part IV.B: 8% (items 47-56) ----
-  const e: Array<[string, keyof typeof A]> = [
-    ["47", "i47"], ["48", "i48"], ["49", "i49"], ["50", "i50"], ["51", "i51"],
-    ["52", "i52"], ["53", "i53"], ["54", "i54"], ["55", "i55"], ["56", "i56"],
-  ];
-  e.forEach(([no, k]) => {
-    put("txtPg2I" + no + "A", amt(A[k]), true);
-    put("txtPg2I" + no + "B", amt(B[k]), true);
-  });
-  put("txtPg2I50Desc", d.i50label || "");
-  put("txtPg2I51Desc", d.i51label || "");
+  // ---- Spouse background (items 66-70) ----
+  const stin = String(d.spouseTin || "").replace(/\D/g, "");
+  P("txtSpouseTIN1", stin.slice(0, 3));
+  P("txtSpouseTIN2", stin.slice(3, 6));
+  P("txtSpouseTIN3", stin.slice(6, 9));
+  P("txtSpouseBranchCode", "");
+  P("txtSpouseRDOCode", (d.spouseRdo as string) || "000");
+  P("optSpouseTaxType_1", rb(d.spouseType === "single"));
+  P("optSpouseTaxType_2", rb(d.spouseType === "prof"));
+  P("optSpouseATC_1", rb(false));
+  P("optSpouseATC_2", rb(false));
+  P("optSpouseATC_3", rb(false));
+  P("optSpouseATC_4", rb(false));
+  P("txtSpouseName", enc(d.spouseName));
+  P("txtSpouseTelNum", "");
+  P("txtSpouseCitizenship", "");
+  P("optSpouseFTC_1", rb(false));
+  P("optSpouseFTC_2", rb(false));
+  P("txtSpouseFTN", "");
+  P("optSpouseTaxRate_1", rb(false));
+  P("optSpouseTaxRate_2", rb(false));
 
-  // ---- Part IV.C: Credits (items 57-65) ----
-  const c: Array<[string, keyof typeof A]> = [
-    ["57", "i57"], ["58", "i58"], ["59", "i59"], ["60", "i60"], ["61", "i61"],
-    ["62", "i62"], ["63", "i63"], ["64", "i64"], ["65", "i65"],
-  ];
-  c.forEach(([no, k]) => {
-    put("txtPg2I" + no + "A", amt(A[k]), true);
-    put("txtPg2I" + no + "B", amt(B[k]), true);
-  });
+  // ---- meta / package fields ----
+  P("txtCurrentPage", "1");
+  P("txtMaxPage", "2");
+  P("txtLineBus", enc(d.lineBus));
+  P("txtCtrmodalPartIVA", "0");
+  P("txtCtrmodalPartIVB", "0");
+  P("txtZIP", "");
+  P("txtEnabledInputsOnValidation", "");
+  P("txtDisabledInputs", "");
+  P("txtEnabledLinks", "");
+  P("txtIsSpouseDisabled", "");
+  P("txtIsTaxFilerDisabled", "false");
+  P("txtAttachmentTypes", "");
+  P("txtTIN4", "");
+  P("txtDisabledOnSave", "");
+  P("txtEnabledOnSave", "");
+  P("txtVersion", "11112018");
+  P("txtdisabledID", "");
+  P("txtmodalPartIVA_C1", "0.00");
+  P("txtmodalPartIVA_C2", "0.00");
+  P("txtmodalPartIVB_C1", "0.00");
+  P("txtmodalPartIVB_C2", "0.00");
 
-  // ---- Part V: Spouse background (items 66-70) ----
-  put("txtPg2I66SpouseTIN1", String(d.spouseTin || "").replace(/\D/g, "").slice(0, 3));
-  put("txtPg2I66SpouseTIN2", String(d.spouseTin || "").replace(/\D/g, "").slice(3, 6));
-  put("txtPg2I66SpouseTIN3", String(d.spouseTin || "").replace(/\D/g, "").slice(6, 9));
-  put("txtPg2I67SpouseRDOCode", d.spouseRdo || "");
-  put("rdoPg2I68SpouseTypeS", rb(d.spouseType === "single"), true);
-  put("rdoPg2I68SpouseTypeP", rb(d.spouseType === "prof"), true);
-  put("txtPg2I70SpouseName", d.spouseName || "");
+  // ---- global tail fields ----
+  G("driveSelectTPExport", "0");
+  G("txtFinalFlag", filing.status === "filed" ? "1" : "0");
+  G("txtEnroll", "N");
+  G("ebirOnlineConfirmUsername", "");
+  G("ebirOnlineUsername", "");
+  G("ebirOnlineSecret", "");
 
-  // ---- meta / package fields (mirrors eBIRForms tail) ----
-  put("txtCurrentPage", "1", true);
-  put("txtMaxPage", "2", true);
-  put("txtIsTaxFilerDisabled", "FALSE", true);
-  put("txtVersion", "2018A", true);
-  putRaw("txtFinalFlag", filing.status === "filed" ? "1" : "0");
-  putRaw("txtEnroll", "Y");
-  putRaw("driveSelectTPExport", "0");
-
-  // ---- assemble ----
-  const body = rows
-    .map(([k, v]) => "            <div>" + k + "=" + v + k + "=</div>\t")
-    .join("\n");
-  return "<?xml version='1.0'?>\t\n" + body + "\n            \t\n            All Rights Reserved BIR 2012.0";
+  // ---- assemble (1701A style: 12-space indent, 2-space trail, BIR 2014. tail) ----
+  const body = rows.map(([k, v]) => "            <div>" + k + "=" + v + k + "=</div>  ").join("\n");
+  return "<?xml version='1.0'?>  \n" + body + "\n              \n            All Rights Reserved BIR 2014.";
 }
 
-/** Canonical eBIRForms filename for a 1701A export. */
+/** Canonical eBIRForms filename for a 1701A export: <tin><br>1701A<mm><yyyy>.xml */
 export function fileName(filing: Filing, tp: Taxpayer | null): string {
   const t = tinParts(tp);
   const yr = parseYear((filing.data || {}).year);
-  return (
-    t.t1 + t.t2 + t.t3 + t.branch.padStart(3, "0").slice(0, 3) +
-    "-1701Av2018-" + yr.mm + (yr.yyyy || "") + ".xml"
-  );
+  return `${t.t1}${t.t2}${t.t3}${t.branch3}1701A${yr.mm}${yr.yyyy}.xml`;
 }
 
-/** Trigger a browser download of an XML string (no-op outside the browser). */
-export function download(filename: string, text: string): void {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([text], { type: "application/xml" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 200);
-}
+// Re-export the shared download helper so existing imports keep working.
+export { download } from "./xmlkit";
