@@ -423,7 +423,8 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
   });
 
   // STEP — Review
-  const checks = validate1701A(data, comp);
+  const checks = validate1701A(data, comp, { tp: tp ?? null, period: rawStr("year") });
+  const blockingChecks = checks.filter((c) => c.level === "error" || c.level === "warn");
   steps.push({
     part: "Review",
     tab: "Review",
@@ -445,18 +446,23 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
         </div>
         <div className="g-subsec">
           <div className="g-subsec-h">Checklist</div>
-          {checks.length === 0 ? (
+          {blockingChecks.length === 0 && (
             <ul className="g-review-list">
               <li>
                 <Icon d={SIco.check} size={15} className="g-rev-ok" />
                 Everything looks complete — ready to print &amp; file.
               </li>
             </ul>
-          ) : (
+          )}
+          {checks.length > 0 && (
             <ul className="g-review-list">
               {checks.map((c, i) => (
                 <li key={i}>
-                  <Icon d={SIco.warn} size={15} className="g-rev-warn" />
+                  <Icon
+                    d={c.level === "info" ? SIco.info : c.level === "ok" ? SIco.check : SIco.warn}
+                    size={15}
+                    className={c.level === "info" ? "g-rev-ok" : "g-rev-warn"}
+                  />
                   {c.msg}
                 </li>
               ))}

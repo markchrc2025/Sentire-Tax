@@ -692,6 +692,16 @@
 .s-valid li.warn svg {
   color: #d08a2e;
 }
+.s-valid li.error {
+  color: #b3402f;
+  font-weight: 500;
+}
+.s-valid li.error svg {
+  color: #cc4631;
+}
+.s-valid li.info svg {
+  color: #5e7fb1;
+}
 .s-allgood {
   display: flex;
   align-items: center;

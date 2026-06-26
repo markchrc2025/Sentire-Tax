@@ -95,7 +95,8 @@ export function Editor({ filingId }: { filingId: string }) {
     setTimeout(() => setXmlMsg(null), 3200);
   }
 
-  const valid = validateFor(filing.form, data, comp);
+  const valid = validateFor(filing.form, data, comp, { tp: tp ?? null, period: filing.period });
+  const blocking = valid.filter((v) => v.level === "error" || v.level === "warn");
 
   return (
     <div className="s-editor">
@@ -203,16 +204,17 @@ export function Editor({ filingId }: { filingId: string }) {
 
             <div className="s-rail-sec">
               <h4>Checklist</h4>
-              {valid.length === 0 ? (
+              {blocking.length === 0 && (
                 <div className="s-allgood">
                   <Icon d={SIco.check} size={15} />
                   Ready to print &amp; file.
                 </div>
-              ) : (
+              )}
+              {valid.length > 0 && (
                 <ul className="s-valid">
                   {valid.map((v, i) => (
                     <li key={i} className={v.level}>
-                      <Icon d={v.level === "warn" ? SIco.warn : SIco.check} size={13} />
+                      <Icon d={v.level === "info" ? SIco.info : v.level === "ok" ? SIco.check : SIco.warn} size={13} />
                       {v.msg}
                     </li>
                   ))}

@@ -23,6 +23,7 @@ export const SIco = {
   zoomOut: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35M8 11h6",
   code: "M16 18l6-6-6-6M8 6l-6 6 6 6",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16v-4M12 8h.01",
 } as const;
 
 export type IconName = keyof typeof SIco;
