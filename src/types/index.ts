@@ -43,6 +43,8 @@ export interface Taxpayer {
   taxpayerType: string;
   classification: string;
   rdoName?: string;
+  /** Storage object path of the uploaded BIR Certificate of Registration (cloud mode). */
+  corPath?: string;
   createdAt: number;
   updatedAt?: number;
 }

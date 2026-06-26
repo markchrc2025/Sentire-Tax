@@ -1,7 +1,7 @@
 // TaxpayersView.tsx — taxpayer grid + editor modal.
 // Ported from TaxpayersView / TaxpayerEditor / Field in bir-shell2.jsx.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { displayName, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { Taxpayer, TaxpayerKind } from "../../types";
@@ -127,7 +127,25 @@ function TaxpayerEditor({
   );
   const upd = (k: keyof TaxpayerDraft, v: string) => setF((o) => ({ ...o, [k]: v }));
 
-  function save() {
+  // BIR Certificate of Registration (COR) attachment — cloud mode only.
+  const [corFile, setCorFile] = useState<File | null>(null);
+  const [corUrl, setCorUrl] = useState<string | null>(null);
+  const [corBusy, setCorBusy] = useState(false);
+  const hasCor = Boolean(f.corPath) || Boolean(corFile);
+
+  useEffect(() => {
+    let active = true;
+    if (repo.supportsFiles && tp?.corPath) {
+      repo.corUrl(tp.id).then((u) => {
+        if (active) setCorUrl(u);
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [repo, tp]);
+
+  async function save() {
     if (f.kind === "individual" && !f.lastName) {
       alert("Enter the last name.");
       return;
@@ -136,8 +154,30 @@ function TaxpayerEditor({
       alert("Enter the registered name.");
       return;
     }
-    repo.taxpayers.save(f as Taxpayer);
-    onSaved();
+    setCorBusy(true);
+    try {
+      const saved = repo.taxpayers.save(f as Taxpayer);
+      if (corFile && repo.supportsFiles) await repo.uploadCor(saved.id, corFile);
+      onSaved();
+    } catch (e) {
+      alert("Could not upload the COR file: " + (e instanceof Error ? e.message : String(e)));
+      setCorBusy(false);
+    }
+  }
+
+  async function removeCor() {
+    if (!tp) return;
+    setCorBusy(true);
+    try {
+      await repo.removeCor(tp.id);
+      setF((o) => ({ ...o, corPath: undefined }));
+      setCorUrl(null);
+      setCorFile(null);
+    } catch (e) {
+      alert("Could not remove the COR: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setCorBusy(false);
+    }
   }
 
   return (
@@ -223,6 +263,40 @@ function TaxpayerEditor({
               <Field lbl="Date of Incorporation" v={f.incorpDate} on={(v) => upd("incorpDate", v)} type="date" />
             </div>
           )}
+
+          {repo.supportsFiles && (
+            <div className="s-cor">
+              <span className="s-cor-label">BIR Certificate of Registration (COR)</span>
+              <div className="s-cor-row">
+                <label className="s-btn s-cor-pick">
+                  <Icon d={SIco.file} size={14} />
+                  {hasCor ? "Replace file" : "Attach file"}
+                  <input
+                    type="file"
+                    accept="application/pdf,image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => setCorFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {corFile ? (
+                  <span className="s-cor-name">{corFile.name}</span>
+                ) : f.corPath ? (
+                  <>
+                    {corUrl && (
+                      <a className="s-cor-name" href={corUrl} target="_blank" rel="noreferrer">
+                        View current COR
+                      </a>
+                    )}
+                    <button className="s-btn s-btn-danger" type="button" disabled={corBusy} onClick={removeCor}>
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <span className="s-cor-hint">PDF or image, stored privately for this taxpayer.</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div className="s-modal-foot">
           {tp ? (
@@ -242,8 +316,8 @@ function TaxpayerEditor({
             <button className="s-btn" onClick={onClose}>
               Cancel
             </button>
-            <button className="s-btn s-btn-primary" onClick={save}>
-              Save Taxpayer
+            <button className="s-btn s-btn-primary" onClick={save} disabled={corBusy}>
+              {corBusy ? "Saving…" : "Save Taxpayer"}
             </button>
           </div>
         </div>
