@@ -7,8 +7,9 @@
 // tail year all vary per form, so each builder owns its own field list and
 // assembly; this module only provides the value-formatting + assembly atoms.
 
-import type { Taxpayer } from "../../types";
+import type { Filing, FormCode, Taxpayer } from "../../types";
 import { num } from "../format";
+import { parsePeriod } from "../period";
 
 /** URL-encode a value the eBIRForms way (comma→%2C, space→%20). */
 export function enc(v: unknown): string {
@@ -82,6 +83,37 @@ export function assemble(
   const head = opts.head ?? "<?xml version='1.0'?>\t\n";
   const body = rows.map(([k, v]) => `${lead}<div>${k}=${v}${k}=</div>${trail}`).join(sep);
   return `${head}${body}${sep}${opts.tail}`;
+}
+
+/**
+ * eBIRForms XML filename convention, per form. The package names each export
+ * `<tin9><branch3><token><date-parts>.xml`, where the token and which date
+ * parts (and their order) vary per form — exactly as observed in real exports.
+ * This is the single source of truth so every form follows the same scheme.
+ */
+const FILENAME_SPEC: Record<FormCode, { token: string; parts: Array<"mm" | "yyyy" | "qn"> }> = {
+  "1701": { token: "1701v2018", parts: ["mm", "yyyy"] },
+  "1701A": { token: "1701A", parts: ["mm", "yyyy"] },
+  "1701Q": { token: "1701Qv2018", parts: ["yyyy", "qn"] },
+  "1702RT": { token: "1702RTv2018", parts: ["mm", "yyyy"] },
+  "1702Q": { token: "1702Q", parts: ["yyyy", "qn"] },
+  "2550Q": { token: "2550Qv2024", parts: ["mm", "yyyy", "qn"] },
+  "2551Q": { token: "2551Qv2018", parts: ["mm", "yyyy", "qn"] },
+  "2307": { token: "2307", parts: ["yyyy", "qn"] },
+  "2316": { token: "2316", parts: ["yyyy"] },
+};
+
+/** Canonical eBIRForms export filename for any form. */
+export function formFileName(form: FormCode, filing: Filing, tp: Taxpayer | null): string {
+  const t = tinParts(tp);
+  const data = filing.data || {};
+  const { year, quarter } = parsePeriod(filing.period || String(data.year || ""));
+  const yr = parseYear(data.year);
+  const spec = FILENAME_SPEC[form];
+  const suffix = spec.parts
+    .map((p) => (p === "mm" ? yr.mm : p === "yyyy" ? year || yr.yyyy : quarter || ""))
+    .join("");
+  return `${t.t1}${t.t2}${t.t3}${t.branch3}${spec.token}${suffix}.xml`;
 }
 
 /** Trigger a browser download of an XML string (no-op outside the browser). */

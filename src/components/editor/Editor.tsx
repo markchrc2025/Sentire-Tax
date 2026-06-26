@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { computeFor } from "../../lib/compute";
 import { download as downloadXml } from "../../lib/xml/build1701A";
-import { buildXml, xmlFileName } from "../../lib/xml/buildXml";
+import { buildXml, xmlFileName, xmlSupported } from "../../lib/xml/buildXml";
 import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FilingData, XmlExport } from "../../types";
@@ -97,6 +97,8 @@ export function Editor({ filingId }: { filingId: string }) {
 
   const valid = validateFor(filing.form, data, comp, { tp: tp ?? null, period: filing.period });
   const blocking = valid.filter((v) => v.level === "error" || v.level === "warn");
+  // 2307/2316 are certificates (printed/PDF), not e-filed — no eBIRForms XML.
+  const xmlOk = xmlSupported(filing.form);
 
   return (
     <div className="s-editor">
@@ -160,10 +162,12 @@ export function Editor({ filingId }: { filingId: string }) {
             </button>
           </div>
         )}
-        <button className="s-btn s-btn-xml" onClick={doXML} title="Export eBIRForms XML">
-          <Icon d={SIco.code} size={16} />
-          Export XML
-        </button>
+        {xmlOk && (
+          <button className="s-btn s-btn-xml" onClick={doXML} title="Export eBIRForms XML">
+            <Icon d={SIco.code} size={16} />
+            Export XML
+          </button>
+        )}
         <button className="s-btn s-btn-primary" onClick={doPrint}>
           <Icon d={SIco.print} size={16} />
           Print / Save as PDF
@@ -222,38 +226,40 @@ export function Editor({ filingId }: { filingId: string }) {
               )}
             </div>
 
-            <div className="s-rail-sec">
-              <h4>
-                XML Exports <span className="s-rail-count">{(filing.exports || []).length}</span>
-              </h4>
-              <button className="s-btn s-btn-xml full" onClick={doXML}>
-                <Icon d={SIco.code} size={14} />
-                Generate eBIRForms XML
-              </button>
-              {(filing.exports || []).length === 0 ? (
-                <p className="s-muted-sm" style={{ marginTop: 8 }}>
-                  No XML generated yet. Exports are saved here for reference.
-                </p>
-              ) : (
-                <ul className="s-exports">
-                  {(filing.exports || []).map((x, i) => (
-                    <li key={i}>
-                      <div className="s-exp-info">
-                        <b title={x.filename}>{x.filename}</b>
-                        <i>{timeAgo(x.at)}</i>
-                      </div>
-                      <button
-                        className="s-iconbtn"
-                        title="Download again"
-                        onClick={() => downloadXml(x.filename, x.xml)}
-                      >
-                        <Icon d={SIco.download} size={14} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            {xmlOk && (
+              <div className="s-rail-sec">
+                <h4>
+                  XML Exports <span className="s-rail-count">{(filing.exports || []).length}</span>
+                </h4>
+                <button className="s-btn s-btn-xml full" onClick={doXML}>
+                  <Icon d={SIco.code} size={14} />
+                  Generate eBIRForms XML
+                </button>
+                {(filing.exports || []).length === 0 ? (
+                  <p className="s-muted-sm" style={{ marginTop: 8 }}>
+                    No XML generated yet. Exports are saved here for reference.
+                  </p>
+                ) : (
+                  <ul className="s-exports">
+                    {(filing.exports || []).map((x, i) => (
+                      <li key={i}>
+                        <div className="s-exp-info">
+                          <b title={x.filename}>{x.filename}</b>
+                          <i>{timeAgo(x.at)}</i>
+                        </div>
+                        <button
+                          className="s-iconbtn"
+                          title="Download again"
+                          onClick={() => downloadXml(x.filename, x.xml)}
+                        >
+                          <Icon d={SIco.download} size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <div className="s-rail-sec">
               <h4>Taxpayer</h4>

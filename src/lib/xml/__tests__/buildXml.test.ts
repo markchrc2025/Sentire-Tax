@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Filing, FormCode, Taxpayer } from "../../../types";
 import { computeFor } from "../../compute";
-import { buildXml, xmlFileName } from "../buildXml";
+import { buildXml, xmlFileName, xmlSupported } from "../buildXml";
+
+function tpWith(tin: string): Taxpayer {
+  return {
+    id: "tp1", kind: "individual", regName: "", lastName: "X", firstName: "Y", middleName: "",
+    tin, branch: "00000", rdo: "045", address: "", city: "", zip: "", birthdate: "",
+    email: "", phone: "", citizenship: "", civilStatus: "", taxpayerType: "", classification: "",
+    createdAt: 0,
+  };
+}
 
 const ALL_FORMS: FormCode[] = [
   "1701", "1701A", "1701Q", "1702RT", "1702Q", "2550Q", "2551Q", "2307", "2316",
@@ -13,6 +22,33 @@ function filing(form: FormCode, period: string, data: Filing["data"] = {}): Fili
     data: { year: period.slice(0, 4), ...data }, createdAt: 0, updatedAt: 0,
   };
 }
+
+describe("xmlFileName — follows the eBIRForms naming convention per form", () => {
+  const cases: Array<[FormCode, string, string, string]> = [
+    ["1701", "218430523", "2025", "2184305230001701v2018122025.xml"],
+    ["1701A", "179059021", "2025", "1790590210001701A122025.xml"],
+    ["1701Q", "474079835", "2025-Q2", "4740798350001701Qv20182025Q2.xml"],
+    ["1702RT", "683266552", "2025", "6832665520001702RTv2018122025.xml"],
+    ["1702Q", "626027978", "2025-Q2", "6260279780001702Q2025Q2.xml"],
+    ["2550Q", "010812973", "2026-Q1", "0108129730002550Qv2024122026Q1.xml"],
+    ["2551Q", "652528538", "2026-Q1", "6525285380002551Qv2018122026Q1.xml"],
+  ];
+  cases.forEach(([form, tin, period, expected]) => {
+    it(`${form} → ${expected}`, () => {
+      expect(xmlFileName(form, filing(form, period), tpWith(tin))).toBe(expected);
+    });
+  });
+});
+
+describe("xmlSupported — 2307/2316 certificates have no eBIRForms XML", () => {
+  it("returns false for the two certificates and true for the seven returns", () => {
+    expect(xmlSupported("2307")).toBe(false);
+    expect(xmlSupported("2316")).toBe(false);
+    (["1701", "1701A", "1701Q", "1702RT", "1702Q", "2550Q", "2551Q"] as FormCode[]).forEach((f) =>
+      expect(xmlSupported(f), f).toBe(true),
+    );
+  });
+});
 
 describe("buildXml — well-formed envelope for every form", () => {
   ALL_FORMS.forEach((form) => {
