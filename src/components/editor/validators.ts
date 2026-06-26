@@ -71,6 +71,13 @@ export function validate1701A(d: FilingData, comp: Comp1701A, ctx: ValidationCon
   if (blank(d.taxRate)) out.push(err("Choose a tax rate (Item 19): graduated or 8%."));
   if (blank(d.atc)) out.push(err("Select an ATC (Item 7)."));
 
+  // Item 14 is required once foreign tax credits are claimed (Item 13 = Yes).
+  if (d.foreignCredit === "yes" && blank(d.foreignTaxNo))
+    out.push(warn("Claiming foreign tax credits — enter the Foreign Tax Number (Item 14)."));
+  // Married filers should pick a filing status (Item 18).
+  if (d.civil === "married" && blank(d.filing))
+    out.push(warn("Choose your filing status — joint or separate (Item 18)."));
+
   const eight = d.taxRate === "eight";
   const sales = num(eight ? d.i47A : d.i36A);
   if (!sales) out.push(warn("Enter sales/revenues in Part IV."));
