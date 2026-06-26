@@ -1,7 +1,7 @@
 // guidedKit.tsx — shared primitives + shell for the guided wizards.
 // Ported from bir-guided-kit.jsx (makeGuided field factory, GuidedShell, gName).
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { FilingData, Taxpayer } from "../../types";
 import { fmtAmt, num, roundPeso } from "../../lib/format";
 import { Icon, SIco } from "../icons";
@@ -34,14 +34,25 @@ export interface ReadOnlyItem {
  * Mirrors the prototype's `makeGuided`.
  */
 export function makeGuided(data: FilingData, set: SetFn) {
-  const is = (f: string, v: string) => data[f] === v;
-  const pick = (f: string, v: string) => set(f, v);
-  const rawStr = (f: string) => {
-    const x = data[f];
-    return x == null || typeof x !== "string" ? "" : x;
-  };
+  // Keep the latest data/set in a ref so the field components below can read
+  // current values WITHOUT being re-created on every render. Re-creating them
+  // (the previous behavior) gave each keystroke a brand-new component *type*,
+  // so React unmounted the focused <input> and remounted a fresh one — dropping
+  // the cursor after a single character. useMemo([]) freezes their identity; the
+  // ref keeps the values they read current.
+  const ref = useRef<{ data: FilingData; set: SetFn }>({ data, set });
+  ref.current = { data, set };
 
-  const Money = ({ field, value, ro }: { field?: string; value?: number; ro?: boolean }) => {
+  return useMemo(() => {
+    const set: SetFn = (f, v) => ref.current.set(f, v);
+    const is = (f: string, v: string) => ref.current.data[f] === v;
+    const pick = (f: string, v: string) => set(f, v);
+    const rawStr = (f: string) => {
+      const x = ref.current.data[f];
+      return x == null || typeof x !== "string" ? "" : x;
+    };
+
+    const Money = ({ field, value, ro }: { field?: string; value?: number; ro?: boolean }) => {
     if (ro) {
       return (
         <div className="g-money ro">
@@ -166,7 +177,9 @@ export function makeGuided(data: FilingData, set: SetFn) {
     </div>
   );
 
-  return { is, pick, Money, Txt, YesNo, Seg, Cards, Q, Result, ReadOnly };
+    return { is, pick, Money, Txt, YesNo, Seg, Cards, Q, Result, ReadOnly };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
 
 export interface GuidedStep {

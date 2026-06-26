@@ -3,15 +3,14 @@
 
 import { useState, type ReactNode } from "react";
 import type { Comp1701A } from "../../lib/compute";
-import { fmtAmt, num, roundPeso } from "../../lib/format";
+import { fmtAmt } from "../../lib/format";
 import { validate1701A } from "../editor/validators";
 import { Icon, SIco } from "../icons";
 import type { GuidedProps } from "../formProps";
+import { makeGuided } from "./guidedKit";
 
 export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: GuidedProps<Comp1701A>) {
   const [step, setStep] = useState(0);
-  const pick = (f: string, v: string) => set(f, v);
-  const is = (f: string, v: string) => data[f] === v;
   const rawStr = (f: string) => {
     const x = data[f];
     return x == null || typeof x !== "string" ? "" : x;
@@ -26,22 +25,13 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
   const rate = (data.taxRate as string) || "";
   const P = "₱ ";
 
-  const Money = ({ field }: { field: string }) => (
-    <div className="g-money">
-      <span className="peso">₱</span>
-      <input
-        inputMode="decimal"
-        value={rawStr(field)}
-        placeholder="0"
-        onChange={(e) => set(field, e.target.value.replace(/[^0-9.\-]/g, ""))}
-        onBlur={(e) => {
-          const n = num(e.target.value);
-          set(field, e.target.value.trim() === "" ? "" : String(roundPeso(n)));
-        }}
-      />
-    </div>
-  );
-  const Pair = ({ base }: { base: string }) =>
+  // Field components come from the shared kit so their identity stays stable
+  // across renders — defining them inline here remounted the inputs on every
+  // keystroke and dropped the cursor.
+  const { Money, Txt, YesNo, Cards, Q } = makeGuided(data, set);
+  // Spouse-aware pair — an inline render helper (NOT a component) so the stable
+  // Money inputs are reconciled directly and never remounted while typing.
+  const pair = (base: string) =>
     spouseOn ? (
       <div className="g-pair">
         <div>
@@ -56,70 +46,6 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
     ) : (
       <Money field={base + "A"} />
     );
-  const Txt = ({ field, ph, up, maxw }: { field: string; ph?: string; up?: boolean; maxw?: number }) => (
-    <input
-      className={"g-text" + (up ? " up" : "")}
-      style={maxw ? { maxWidth: maxw } : undefined}
-      value={rawStr(field)}
-      placeholder={ph || ""}
-      onChange={(e) => set(field, e.target.value)}
-    />
-  );
-  const YesNo = ({ field }: { field: string }) => (
-    <div className="g-seg2">
-      <button className={is(field, "yes") ? "on" : ""} onClick={() => pick(field, "yes")}>
-        Yes
-      </button>
-      <button className={is(field, "no") ? "on" : ""} onClick={() => pick(field, "no")}>
-        No
-      </button>
-    </div>
-  );
-  const Cards = ({
-    field,
-    options,
-    cols,
-  }: {
-    field: string;
-    options: Array<{ val: string; title: string; code?: string; note?: string }>;
-    cols?: number;
-  }) => (
-    <div className={"g-choice" + (cols === 2 ? " c2" : "")}>
-      {options.map((o) => (
-        <button key={o.val} className={"g-opt" + (is(field, o.val) ? " on" : "")} onClick={() => pick(field, o.val)}>
-          <div className="g-opt-t">
-            {o.code && <span className="g-opt-code">{o.code}</span>}
-            {o.title}
-          </div>
-          {o.note && <div className="g-opt-note">{o.note}</div>}
-          <span className="g-opt-check">{is(field, o.val) && <Icon d={SIco.check} size={12} />}</span>
-        </button>
-      ))}
-    </div>
-  );
-  const Q = ({
-    item,
-    label,
-    help,
-    req,
-    children,
-  }: {
-    item?: string;
-    label: ReactNode;
-    help?: string;
-    req?: boolean;
-    children: ReactNode;
-  }) => (
-    <div className="g-q">
-      <label className="g-q-label">
-        {item && <span className="g-q-item">{item} · </span>}
-        {label}
-        {req && <span className="req">*</span>}
-      </label>
-      {help && <p className="g-q-help">{help}</p>}
-      {children}
-    </div>
-  );
 
   const atcOptions =
     rate === "eight"
@@ -269,15 +195,15 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
       rate === "eight" ? (
         <>
           <Q item="Item 47" label="Sales / Revenues / Receipts / Fees" help="Total gross sales or receipts for the year (net of returns below)." req>
-            <Pair base="i47" />
+            {pair("i47")}
           </Q>
           <Q item="Item 48" label="Less: Sales Returns, Allowances and Discounts">
-            <Pair base="i48" />
+            {pair("i48")}
           </Q>
           <Q item="Item 50–51" label="Other Non-Operating Income" help="Any other taxable income not from your main operations.">
             <Txt field="i50label" ph="Specify (optional)" maxw={300} />
             <div style={{ height: 8 }} />
-            <Pair base="i50" />
+            {pair("i50")}
           </Q>
           <div className="g-result hl">
             <div className="g-result-row"><span>Net sales (Item 49)</span><b>{P}{fmtAmt(comp.A.i49)}</b></div>
@@ -290,18 +216,18 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
       ) : (
         <>
           <Q item="Item 36" label="Sales / Revenues / Receipts / Fees" help="Total gross sales or receipts for the year." req>
-            <Pair base="i36" />
+            {pair("i36")}
           </Q>
           <Q item="Item 37" label="Less: Sales Returns, Allowances and Discounts">
-            <Pair base="i37" />
+            {pair("i37")}
           </Q>
           <Q item="Item 41–42" label="Other Non-Operating Income" help="Other taxable income not from your main operations (optional).">
             <Txt field="i41label" ph="Specify (optional)" maxw={300} />
             <div style={{ height: 8 }} />
-            <Pair base="i41" />
+            {pair("i41")}
           </Q>
           <Q item="Item 43" label="Share in income from a General Professional Partnership (GPP)">
-            <Pair base="i43" />
+            {pair("i43")}
           </Q>
           <div className="g-result hl">
             <div className="g-result-row"><span>Net sales (Item 38)</span><b>{P}{fmtAmt(comp.A.i38)}</b></div>
@@ -323,12 +249,12 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
     desc: "Enter any taxes you’ve already paid or that were withheld — these reduce what you still owe. Leave blank if none. (Attach proof when filing.)",
     render: () => (
       <>
-        <Q item="Item 57" label="Prior Year’s Excess Credits"><Pair base="i57" /></Q>
-        <Q item="Item 58" label="Tax Payments for the First Three (3) Quarters" help="What you paid on your 1701Q quarterly returns."><Pair base="i58" /></Q>
-        <Q item="Item 59" label="Creditable Tax Withheld for the First Three (3) Quarters"><Pair base="i59" /></Q>
-        <Q item="Item 60" label="Creditable Tax Withheld per BIR Form 2307 (4th Quarter)" help="From the 2307 certificates issued to you for Q4."><Pair base="i60" /></Q>
-        <Q item="Item 61" label="Tax Paid in Previously Filed Return (if amended)"><Pair base="i61" /></Q>
-        <Q item="Item 62" label="Foreign Tax Credits, if applicable"><Pair base="i62" /></Q>
+        <Q item="Item 57" label="Prior Year’s Excess Credits">{pair("i57")}</Q>
+        <Q item="Item 58" label="Tax Payments for the First Three (3) Quarters" help="What you paid on your 1701Q quarterly returns.">{pair("i58")}</Q>
+        <Q item="Item 59" label="Creditable Tax Withheld for the First Three (3) Quarters">{pair("i59")}</Q>
+        <Q item="Item 60" label="Creditable Tax Withheld per BIR Form 2307 (4th Quarter)" help="From the 2307 certificates issued to you for Q4.">{pair("i60")}</Q>
+        <Q item="Item 61" label="Tax Paid in Previously Filed Return (if amended)">{pair("i61")}</Q>
+        <Q item="Item 62" label="Foreign Tax Credits, if applicable">{pair("i62")}</Q>
         <div className="g-result hl">
           <div className="g-result-row"><span>Total tax credits (Item 64)</span><b>{P}{fmtAmt(comp.A.i64)}</b></div>
           <div className="g-result-row big"><span>Net tax payable (Item 65)</span><b>{P}{fmtAmt(comp.A.i65)}</b></div>
@@ -347,16 +273,16 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
     render: () => (
       <>
         <Q item="Item 23" label="Portion allowed for 2nd installment" help="You may pay up to 50% of the tax due now and the rest on or before October 15. Enter the amount to defer, or leave blank.">
-          <Pair base="i23" />
+          {pair("i23")}
         </Q>
         <div className="g-subsec">
           <div className="g-subsec-h">
             <Icon d={SIco.warn} size={15} style={{ color: "#d08a2e" }} />
             Penalties (only if filed late)
           </div>
-          <Q item="Item 25" label="Surcharge"><Pair base="i25" /></Q>
-          <Q item="Item 26" label="Interest"><Pair base="i26" /></Q>
-          <Q item="Item 27" label="Compromise"><Pair base="i27" /></Q>
+          <Q item="Item 25" label="Surcharge">{pair("i25")}</Q>
+          <Q item="Item 26" label="Interest">{pair("i26")}</Q>
+          <Q item="Item 27" label="Compromise">{pair("i27")}</Q>
         </div>
         <Q item="Item 31" label="Number of Attachments" help="Supporting documents you’re attaching (e.g. 2307 certificates, financial statements).">
           <Txt field="attachments" ph="0" maxw={120} />
