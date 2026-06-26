@@ -13,29 +13,62 @@ import type { CompResult } from "../compute";
 import { catalogEntry } from "../catalog";
 import { displayName } from "../taxpayer";
 import { parsePeriod } from "../period";
-import { amt, build1701A, enc, fileName as fileName1701A, parseYear, tinParts } from "./build1701A";
-import type { Comp1701A } from "../compute";
+import { build1701A, fileName as fileName1701A } from "./build1701A";
+import { build1701Q, fileName1701Q } from "./build1701Q";
+import { build1702RT, fileName1702RT } from "./build1702RT";
+import { build2550Q, fileName2550Q } from "./build2550Q";
+import { build2551Q, fileName2551Q } from "./build2551Q";
+import { amt, enc, parseYear, tinParts } from "./xmlkit";
+import type { Comp1701A, Comp1701Q, Comp1702RT, Comp2550Q, Comp2551Q } from "../compute";
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-/** Build the eBIRForms-style XML string for any form (1701A is official). */
+/**
+ * Build the eBIRForms-style XML string for a form. Five forms (1701A, 1701Q,
+ * 1702RT, 2550Q, 2551Q) export in the *authentic* eBIRForms field format via a
+ * dedicated builder; the remaining four (1701, 1702Q, 2307, 2316) use the
+ * generic structured builder until their official samples are wired in.
+ */
 export function buildXml(
   form: FormCode,
   filing: Filing,
   tp: Taxpayer | null,
   comp: CompResult,
 ): string {
-  if (form === "1701A") return build1701A(filing, tp, comp as Comp1701A);
-  return buildGeneric(form, filing, tp, comp);
+  switch (form) {
+    case "1701A":
+      return build1701A(filing, tp, comp as Comp1701A);
+    case "1701Q":
+      return build1701Q(filing, tp, comp as Comp1701Q);
+    case "1702RT":
+      return build1702RT(filing, tp, comp as Comp1702RT);
+    case "2550Q":
+      return build2550Q(filing, tp, comp as Comp2550Q);
+    case "2551Q":
+      return build2551Q(filing, tp, comp as Comp2551Q);
+    default:
+      return buildGeneric(form, filing, tp, comp);
+  }
 }
 
-/** Canonical export filename for any form (1701A matches the official package). */
+/** Canonical export filename for a form (the five aligned forms match the package). */
 export function xmlFileName(form: FormCode, filing: Filing, tp: Taxpayer | null): string {
-  if (form === "1701A") return fileName1701A(filing, tp);
+  switch (form) {
+    case "1701A":
+      return fileName1701A(filing, tp);
+    case "1701Q":
+      return fileName1701Q(filing, tp);
+    case "1702RT":
+      return fileName1702RT(filing, tp);
+    case "2550Q":
+      return fileName2550Q(filing, tp);
+    case "2551Q":
+      return fileName2551Q(filing, tp);
+  }
   const t = tinParts(tp);
   const { year, quarter } = parsePeriod(filing.period || String((filing.data || {}).year || ""));
   const period = quarter ? `${year}${quarter}` : year || parseYear((filing.data || {}).year).yyyy;
-  return `${t.t1}${t.t2}${t.t3}${t.branch.padStart(3, "0").slice(0, 3)}-${form}-${period}.xml`;
+  return `${t.t1}${t.t2}${t.t3}${t.branch3}-${form}-${period}.xml`;
 }
 
 /**
@@ -69,7 +102,7 @@ function buildGeneric(
   put("TIN1", t.t1, true);
   put("TIN2", t.t2, true);
   put("TIN3", t.t3, true);
-  put("BranchCode", t.branch, true);
+  put("BranchCode", t.branch3, true);
   put("RDOCode", (tp && tp.rdo) || "", false);
   put("TaxpayerName", displayName(tp), false);
   if (tp) {
