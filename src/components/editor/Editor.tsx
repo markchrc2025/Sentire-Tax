@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { computeFor } from "../../lib/compute";
-import { compute1701A } from "../../lib/compute";
-import { build1701A, download as downloadXml, fileName } from "../../lib/xml/build1701A";
+import { download as downloadXml } from "../../lib/xml/build1701A";
+import { buildXml, xmlFileName } from "../../lib/xml/buildXml";
 import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FilingData, XmlExport } from "../../types";
@@ -85,13 +85,8 @@ export function Editor({ filingId }: { filingId: string }) {
 
   function doXML() {
     if (!filing) return;
-    if (filing.form !== "1701A") {
-      alert("XML export is available for 1701A.");
-      return;
-    }
-    const c = compute1701A(data);
-    const xml = build1701A(filing, tp, c);
-    const filename = fileName(filing, tp);
+    const xml = buildXml(filing.form, filing, tp, comp);
+    const filename = xmlFileName(filing.form, filing, tp);
     const record: XmlExport = { at: Date.now(), filename, xml };
     repo.filings.addExport(filing.id, record);
     refresh();

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CATALOG, CATEGORIES, FORM_COLOR } from "../../lib/catalog";
+import { buildPeriod, isQuarterlyForm } from "../../lib/period";
 import { displayName, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FormCode } from "../../types";
@@ -14,15 +15,18 @@ export function NewFiling() {
   const [form, setForm] = useState<FormCode | null>(null);
   const [tpId, setTpId] = useState("");
   const [year, setYear] = useState("");
+  const [quarter, setQuarter] = useState("Q1");
   const taxpayers = repo.taxpayers.all();
   const selectedTp = taxpayers.find((t) => t.id === tpId);
   const tin = normalizeTin(selectedTp?.tin);
   const tinMissing = Boolean(tpId && !tin);
-  const canGenerate = Boolean(form && tpId && year.trim() && tin);
+  const quarterly = isQuarterlyForm(form ?? undefined);
+  const period = year.trim() ? buildPeriod(year, quarterly ? quarter : undefined) : "";
+  const canGenerate = Boolean(form && tpId && period && tin);
 
   function generate() {
-    if (!form || !tin || !year.trim()) return;
-    navigate(`/${form}/${encodeURIComponent(year.trim())}/${tin}`);
+    if (!form || !tin || !period) return;
+    navigate(`/${form}/${encodeURIComponent(period)}/${tin}`);
   }
 
   return (
@@ -61,12 +65,30 @@ export function NewFiling() {
       ))}
 
       <div className="s-step-lbl" style={{ marginTop: 8 }}>
-        2 · Taxable year / period
+        2 · Taxable {quarterly ? "year & quarter" : "year"}
       </div>
-      <label className="s-field" style={{ maxWidth: 220 }}>
-        <span>Year (or period, e.g. 2024 or 2024-Q1)</span>
-        <input value={year} placeholder="2024" onChange={(e) => setYear(e.target.value)} />
-      </label>
+      <div style={{ display: "flex", gap: 11, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <label className="s-field" style={{ maxWidth: 160 }}>
+          <span>Year</span>
+          <input value={year} placeholder="2024" onChange={(e) => setYear(e.target.value)} />
+        </label>
+        {quarterly && (
+          <label className="s-field" style={{ maxWidth: 120 }}>
+            <span>Quarter</span>
+            <select value={quarter} onChange={(e) => setQuarter(e.target.value)}>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+          </label>
+        )}
+        {period && (
+          <div className="s-muted-sm" style={{ paddingBottom: 9 }}>
+            URL period: <b>{period}</b>
+          </div>
+        )}
+      </div>
 
       <div className="s-step-lbl" style={{ marginTop: 20 }}>
         3 · Select the taxpayer
