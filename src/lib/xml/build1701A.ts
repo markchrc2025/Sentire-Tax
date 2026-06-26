@@ -8,13 +8,13 @@ import type { Comp1701A } from "../compute";
 import { num } from "../format";
 
 // URL-encode like eBIRForms (comma->%2C, space->%20). encodeURIComponent matches.
-function enc(v: unknown): string {
+export function enc(v: unknown): string {
   if (v == null) return "";
   return encodeURIComponent(String(v));
 }
 
 // amount -> "1,234,567.00"
-function amt(n: unknown): string {
+export function amt(n: unknown): string {
   const v = num(n);
   return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -29,7 +29,7 @@ function dob(iso?: string): string {
   return iso;
 }
 
-function tinParts(tp: Taxpayer | null) {
+export function tinParts(tp: Taxpayer | null) {
   const d = String((tp && tp.tin) || "").replace(/\D/g, "");
   return {
     t1: d.slice(0, 3),
@@ -42,7 +42,7 @@ function tinParts(tp: Taxpayer | null) {
   };
 }
 
-function parseYear(y: unknown): { mm: string; yyyy: string } {
+export function parseYear(y: unknown): { mm: string; yyyy: string } {
   const s = String(y || "");
   if (s.includes("/")) {
     const [m, yr] = s.split("/");

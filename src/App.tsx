@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import type { FormCode } from "./types";
 import { isFormCode } from "./lib/catalog";
+import { parsePeriod } from "./lib/period";
 import { formatTin, normalizeTin } from "./lib/taxpayer";
 import { useRepository } from "./lib/repository/RepositoryProvider";
 import { Sidebar } from "./components/shell/Sidebar";
@@ -54,9 +55,10 @@ function FilingEditor() {
       .all()
       .find((x) => x.form === form && x.taxpayerId === tp.id && x.period === period);
     if (!f) {
+      const { year, quarter } = parsePeriod(period);
       f = repo.filings.create(form as FormCode, tp.id);
       f.period = period;
-      f.data = { ...f.data, year: period };
+      f.data = { ...f.data, year, ...(quarter ? { quarter } : {}) };
       repo.filings.save(f);
       refresh();
     }
