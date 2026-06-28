@@ -164,6 +164,16 @@
 .bir-1701a-p1 .bir-perjury { font-size: 10.6px; line-height: 1.45; padding: 7px 9px; }
 .bir-1701a-p1 .bir-sign { font-size: 10.6px; padding: 11px 8px 6px; }
 
+/* 1701 is a dense 4-page return. Pages 1-3 leave spare vertical space, so give
+   their rows extra height to fill the A4 sheet down to the bottom margin
+   (the official form's fields are roomy for handwriting anyway). Tuned per page
+   since each carries a different number of rows. */
+.bir-1701-p1 .bir-cell { min-height: 32px; }
+.bir-1701-p1 .bir-line { min-height: 26px; }
+.bir-1701-p2 .bir-line { min-height: 26px; }
+.bir-1701-p2 .bir-cell { min-height: 31px; }
+.bir-1701-p3 .bir-line { min-height: 23px; }
+
 /* The printed BIR form has no shaded data cells — every amount box is white,
    computed totals are simply set in bold. The grey read-only tint is an
    editing affordance that doesn't belong on the print-faithful sheet, so drop

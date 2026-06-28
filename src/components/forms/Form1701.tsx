@@ -142,6 +142,42 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
     );
   }
 
+  // ── Schedule 6 detailed NOLCO table (Year + cols A-E) ──
+  function NolcoTable({ rows, totalNo, totalLabel }: { rows: number[]; totalNo: string; totalLabel: string }) {
+    const col = { padding: "3px 4px" } as const;
+    return (
+      <>
+        <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontSize: 8.6, fontWeight: 700, textAlign: "center" }}>
+          <div style={{ width: 86, ...col }} className="br">Year Incurred</div>
+          <div className="grow br" style={col}>A. Amount</div>
+          <div className="grow br" style={col}>B. NOLCO Applied Previous Year/s</div>
+          <div className="grow br" style={col}>C. NOLCO Expired</div>
+          <div className="grow br" style={col}>D. NOLCO Applied Current Year</div>
+          <div className="grow" style={col}>E. Net Operating Loss (Unapplied) [E = A − (B+C+D)]</div>
+        </div>
+        {rows.map((r) => (
+          <div className="row b" style={{ borderTop: 0 }} key={"nolco" + r}>
+            <div style={{ width: 86, display: "flex", alignItems: "center" }} className="br">
+              <span className="num" style={{ width: 18, flex: "none" }}>{r}</span>
+              <BirText field={`nolco${r}Year`} data={data} set={set} lower />
+            </div>
+            <div className="grow br"><BirAmt field={`nolco${r}A`} data={data} set={set} /></div>
+            <div className="grow br"><BirAmt field={`nolco${r}B`} data={data} set={set} /></div>
+            <div className="grow br"><BirAmt field={`nolco${r}C`} data={data} set={set} /></div>
+            <div className="grow br"><BirAmt field={`nolco${r}D`} data={data} set={set} /></div>
+            <div className="grow"><BirAmt field={`nolco${r}E`} data={data} set={set} /></div>
+          </div>
+        ))}
+        <div className="row b" style={{ borderTop: 0 }}>
+          <div className="bir-cell grow br" style={{ fontWeight: 700, display: "flex", alignItems: "center" }}>
+            <span className="bir-ino">{totalNo}</span>&nbsp;<span className="bir-cap">{totalLabel}</span>
+          </div>
+          <div style={{ width: 170 }}><BirAmt field={`nolco${totalNo}D`} data={data} set={set} /></div>
+        </div>
+      </>
+    );
+  }
+
   // ── ATC radio grid (7 codes) ──
   function AtcGrid({ field }: { field: string }) {
     return (
@@ -182,7 +218,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
   return (
     <>
       {/* ============================ PAGE 1 ============================ */}
-      <div className="bir-sheet">
+      <div className="bir-sheet bir-1701 bir-1701-p1">
         <BirHeader
           code="1701"
           date="January 2018 (ENCS)"
@@ -451,7 +487,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
       </div>
 
       {/* ============================ PAGE 2 ============================ */}
-      <div className="bir-sheet">
+      <div className="bir-sheet bir-1701 bir-1701-p2">
         <BirHeader code="1701" date="January 2018 (ENCS)" page="2" title="Annual Income Tax Return" sub="Individuals (incl. MIXED Income Earners), Estates and Trusts" pcode="1701 01/18 ENCS P2" />
         <TinNameBand />
 
@@ -568,18 +604,23 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         <SchedBand>Schedule 1 – Gross Compensation Income and Tax Withheld</SchedBand>
         <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontSize: 9.6, fontWeight: 700 }}>
           <div className="num" style={{ width: 28 }}></div>
+          <div style={{ width: 96, padding: "3px 5px" }} className="br">For</div>
           <div className="grow br" style={{ padding: "3px 5px" }}>Name of Employer</div>
-          <div style={{ width: 180, padding: "3px 5px" }} className="br bl">Employer&rsquo;s TIN</div>
-          <div style={{ width: 150, padding: "3px 5px" }} className="br">Compensation Income</div>
-          <div style={{ width: 150, padding: "3px 5px", textAlign: "center" }}>Tax Withheld</div>
+          <div style={{ width: 160, padding: "3px 5px" }} className="br bl">Employer&rsquo;s TIN</div>
+          <div style={{ width: 140, padding: "3px 5px" }} className="br">Compensation Income</div>
+          <div style={{ width: 140, padding: "3px 5px", textAlign: "center" }}>Tax Withheld</div>
         </div>
         {[1, 2].map((r) => (
           <div className="row b" style={{ borderTop: 0 }} key={"emp" + r}>
             <div className="num" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{r}</div>
-            <div className="grow br"><BirText field={`sch1_${r}Name`} data={data} set={set} /></div>
-            <div style={{ width: 180 }} className="br bl"><BirText field={`sch1_${r}TIN`} data={data} set={set} lower /></div>
-            <div style={{ width: 150 }} className="br"><BirAmt field={`sch1_${r}CI`} data={data} set={set} /></div>
-            <div style={{ width: 150 }}><BirAmt field={`sch1_${r}TW`} data={data} set={set} /></div>
+            <div style={{ width: 96, padding: "2px 5px", display: "flex", flexDirection: "column", gap: 2, justifyContent: "center" }} className="br">
+              <BirCkRow on={is(`sch1_${r}Who`, "taxpayer")} onClick={() => pick(`sch1_${r}Who`, "taxpayer")}>Taxpayer</BirCkRow>
+              <BirCkRow on={is(`sch1_${r}Who`, "spouse")} onClick={() => pick(`sch1_${r}Who`, "spouse")}>Spouse</BirCkRow>
+            </div>
+            <div className="grow br" style={{ display: "flex", alignItems: "center" }}><BirText field={`sch1_${r}Name`} data={data} set={set} /></div>
+            <div style={{ width: 160, display: "flex", alignItems: "center" }} className="br bl"><BirText field={`sch1_${r}TIN`} data={data} set={set} lower /></div>
+            <div style={{ width: 140, display: "flex", alignItems: "center" }} className="br"><BirAmt field={`sch1_${r}CI`} data={data} set={set} /></div>
+            <div style={{ width: 140, display: "flex", alignItems: "center" }}><BirAmt field={`sch1_${r}TW`} data={data} set={set} /></div>
           </div>
         ))}
         <div className="row b" style={{ borderTop: 0 }}>
@@ -587,16 +628,16 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <div className="grow br" style={{ fontSize: 10.4, padding: "2px 6px", display: "flex", alignItems: "center", fontWeight: 700 }}>
             Gross Compensation &amp; Total Tax Withheld – TAXPAYER
           </div>
-          <div style={{ width: 150 }} className="br bl"><BirAmt ro value={A.comp} /></div>
-          <div style={{ width: 150 }}><BirAmt ro value={A.taxWithheldComp} /></div>
+          <div style={{ width: 140 }} className="br bl"><BirAmt ro value={A.comp} /></div>
+          <div style={{ width: 140 }}><BirAmt ro value={A.taxWithheldComp} /></div>
         </div>
         <div className="row b" style={{ borderTop: 0 }}>
           <div className="num" style={{ width: 28, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>3B</div>
           <div className="grow br" style={{ fontSize: 10.4, padding: "2px 6px", display: "flex", alignItems: "center", fontWeight: 700 }}>
             Gross Compensation &amp; Total Tax Withheld – SPOUSE
           </div>
-          <div style={{ width: 150 }} className="br bl"><BirAmt ro value={Bb.comp} /></div>
-          <div style={{ width: 150 }}><BirAmt ro value={Bb.taxWithheldComp} /></div>
+          <div style={{ width: 140 }} className="br bl"><BirAmt ro value={Bb.comp} /></div>
+          <div style={{ width: 140 }}><BirAmt ro value={Bb.taxWithheldComp} /></div>
         </div>
 
         {/* Schedule 2 — Taxable Compensation Income */}
@@ -635,7 +676,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
       </div>
 
       {/* ============================ PAGE 3 ============================ */}
-      <div className="bir-sheet">
+      <div className="bir-sheet bir-1701 bir-1701-p3">
         <BirHeader code="1701" date="January 2018 (ENCS)" page="3" title="Annual Income Tax Return" sub="Individuals (incl. MIXED Income Earners), Estates and Trusts" pcode="1701 01/18 ENCS P3" />
         <TinNameBand />
 
@@ -674,19 +715,36 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <div style={{ width: 240, padding: "3px 5px" }} className="br bl">Legal Basis</div>
           <div style={{ width: 160, padding: "3px 5px", textAlign: "center" }}>Amount</div>
         </div>
-        {[
-          ["1", "5.A – Taxpayer/Filer"],
-          ["2", "5.A – Taxpayer/Filer"],
-          ["4", "5.B – Spouse"],
-          ["5", "5.B – Spouse"],
-        ].map(([n]) => (
+        <div className="bir-section b" style={{ borderTop: 0, fontStyle: "italic" }}>5.A – Taxpayer/Filer</div>
+        {["1", "2"].map((n) => (
           <div className="row b" style={{ borderTop: 0 }} key={"s5_" + n}>
             <div className="num" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{n}</div>
-            <div className="grow br"><BirText field={`s5_${n}desc`} data={data} set={set} /></div>
-            <div style={{ width: 240 }} className="br bl"><BirText field={`s5_${n}legal`} data={data} set={set} /></div>
-            <div style={{ width: 160 }}><BirAmt field={`s5_${n}amt`} data={data} set={set} /></div>
+            <div className="grow br" style={{ display: "flex", alignItems: "center" }}><BirText field={`s5_${n}desc`} data={data} set={set} /></div>
+            <div style={{ width: 240, display: "flex", alignItems: "center" }} className="br bl"><BirText field={`s5_${n}legal`} data={data} set={set} /></div>
+            <div style={{ width: 160, display: "flex", alignItems: "center" }}><BirAmt field={`s5_${n}amt`} data={data} set={set} /></div>
           </div>
         ))}
+        <div className="row b" style={{ borderTop: 0 }}>
+          <div className="bir-cell grow br" style={{ fontWeight: 700 }}>
+            <span className="bir-ino">3</span> <span className="bir-cap">Total Special Allowable Itemized Deductions – Taxpayer/Filer (Sum of 1 and 2) (To Schedule 3.A Item 14A)</span>
+          </div>
+          <div style={{ width: 160 }}><BirAmt field="s5_3amt" data={data} set={set} /></div>
+        </div>
+        <div className="bir-section b" style={{ borderTop: 0, fontStyle: "italic" }}>5.B – Spouse</div>
+        {["4", "5"].map((n) => (
+          <div className="row b" style={{ borderTop: 0 }} key={"s5_" + n}>
+            <div className="num" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{n}</div>
+            <div className="grow br" style={{ display: "flex", alignItems: "center" }}><BirText field={`s5_${n}desc`} data={data} set={set} /></div>
+            <div style={{ width: 240, display: "flex", alignItems: "center" }} className="br bl"><BirText field={`s5_${n}legal`} data={data} set={set} /></div>
+            <div style={{ width: 160, display: "flex", alignItems: "center" }}><BirAmt field={`s5_${n}amt`} data={data} set={set} /></div>
+          </div>
+        ))}
+        <div className="row b" style={{ borderTop: 0 }}>
+          <div className="bir-cell grow br" style={{ fontWeight: 700 }}>
+            <span className="bir-ino">6</span> <span className="bir-cap">Total Special Allowable Itemized Deductions – Spouse (Sum of 4 and 5) (To Schedule 3.A Item 14B)</span>
+          </div>
+          <div style={{ width: 160 }}><BirAmt field="s5_6amt" data={data} set={set} /></div>
+        </div>
 
         {/* Schedule 6 — NOLCO */}
         <SchedBand>Schedule 6 – Computation of Net Operating Loss Carry Over (NOLCO)</SchedBand>
@@ -694,14 +752,20 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         <div className="b" style={{ borderTop: 0 }}>
           <CRow no="1" label="Gross Income" base="nolco1" />
           <CRow no="2" label="Less: Ordinary Allowable Itemized Deductions" base="nolco2" />
-          <CRow no="3" label="Net Operating Loss (Item 1 Less Item 2)" base="nolco3_" />
+          <CRow no="3" label="Net Operating Loss (Item 1 Less Item 2)" base="nolco3_" strong />
         </div>
+        <SchedBand>6.A.1 – Taxpayer/Filer&rsquo;s Detailed Computation of Available NOLCO</SchedBand>
+        <NolcoTable rows={[4, 5, 6, 7]} totalNo="8" totalLabel="Total NOLCO – Taxpayer/Filer (Sum of Items 4D to 7D) (To Schedule 3.A Item 15A)" />
       </div>
 
       {/* ============================ PAGE 4 ============================ */}
-      <div className="bir-sheet">
+      <div className="bir-sheet bir-1701 bir-1701-p4">
         <BirHeader code="1701" date="January 2018 (ENCS)" page="4" title="Annual Income Tax Return" sub="Individuals (incl. MIXED Income Earners), Estates and Trusts" pcode="1701 01/18 ENCS P4" />
         <TinNameBand />
+
+        {/* Schedule 6 (cont.) — Spouse NOLCO */}
+        <SchedBand>Schedule 6 (cont.) · 6.A.2 – Spouse&rsquo;s Detailed Computation of Available NOLCO</SchedBand>
+        <NolcoTable rows={[9, 10, 11, 12]} totalNo="13" totalLabel="Total NOLCO – Spouse (Sum of Items 9D to 12D) (To Schedule 3.A Item 15B)" />
 
         {/* Part VI — Summary of Income Tax Due */}
         <PartBand>Part VI – Summary of Income Tax Due</PartBand>
