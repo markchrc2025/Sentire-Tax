@@ -12,11 +12,12 @@
 // printed form. Field keys for the captured background/spouse data match the
 // authentic eBIRForms builder (build1701).
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1701 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
+import type { FilingData } from "../../types";
 import { BirHeader, DeclSign, PartBand, PaymentDetails } from "../formparts";
-import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 
 const TAXPAYER_TYPES: Array<[string, string]> = [
   ["single", "Single Proprietor"],
@@ -62,6 +63,165 @@ const SCHED4: string[] = [
   "Transportation and Travel",
 ];
 
+// ── form-wide context so the row helpers below can live at MODULE scope.
+//    Defining them inside the component gave each render a new component type,
+//    which remounted every <input> on each keystroke and dropped the cursor. ──
+interface Ctx1701 {
+  data: FilingData;
+  set: SetFn;
+  is: (f: string, v: string) => boolean;
+  pick: (f: string, v: string) => void;
+  tin: string;
+  lastName: string;
+}
+const FormCtx = createContext<Ctx1701 | null>(null);
+const useF = () => useContext(FormCtx) as Ctx1701;
+
+// ── shared row: number | label | A amount | B amount ──
+function CRow({
+  no,
+  label,
+  sub,
+  base,
+  roA,
+  roB,
+  valA,
+  valB,
+  strong,
+  indent,
+}: {
+  no?: ReactNode;
+  label: ReactNode;
+  sub?: string;
+  base: string;
+  roA?: boolean;
+  roB?: boolean;
+  valA?: number;
+  valB?: number;
+  strong?: boolean;
+  indent?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt">
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400, paddingLeft: indent ? 16 : undefined }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br">
+        <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
+      </div>
+      <div className="amtcell br">
+        <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
+      </div>
+    </div>
+  );
+}
+
+// ── grey "A) Taxpayer | B) Spouse" column header ──
+function ABHead({ label }: { label: string }) {
+  return (
+    <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontWeight: 700, alignItems: "stretch", minHeight: 22 }}>
+      <div className="num" style={{ width: 28, flex: "none" }}></div>
+      <div className="desc" style={{ flex: 1, fontSize: 10.6, display: "flex", alignItems: "center", padding: "2px 6px" }}>
+        {label}
+      </div>
+      <div className="amtcell bl br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        A) Taxpayer/Filer
+      </div>
+      <div className="amtcell br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        B) Spouse
+      </div>
+    </div>
+  );
+}
+
+// ── light schedule sub-band (no amount heads) ──
+function SchedBand({ children }: { children: ReactNode }) {
+  return (
+    <div className="bir-section b" style={{ borderTop: 0 }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Schedule 6 detailed NOLCO table (Year + cols A-E) ──
+function NolcoTable({ rows, totalNo, totalLabel }: { rows: number[]; totalNo: string; totalLabel: string }) {
+  const { data, set } = useF();
+  const col = { padding: "3px 4px" } as const;
+  return (
+    <>
+      <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontSize: 8.6, fontWeight: 700, textAlign: "center" }}>
+        <div style={{ width: 86, ...col }} className="br">Year Incurred</div>
+        <div className="grow br" style={col}>A. Amount</div>
+        <div className="grow br" style={col}>B. NOLCO Applied Previous Year/s</div>
+        <div className="grow br" style={col}>C. NOLCO Expired</div>
+        <div className="grow br" style={col}>D. NOLCO Applied Current Year</div>
+        <div className="grow" style={col}>E. Net Operating Loss (Unapplied) [E = A − (B+C+D)]</div>
+      </div>
+      {rows.map((r) => (
+        <div className="row b" style={{ borderTop: 0 }} key={"nolco" + r}>
+          <div style={{ width: 86, display: "flex", alignItems: "center" }} className="br">
+            <span className="num" style={{ width: 18, flex: "none" }}>{r}</span>
+            <BirText field={`nolco${r}Year`} data={data} set={set} lower />
+          </div>
+          <div className="grow br"><BirAmt field={`nolco${r}A`} data={data} set={set} /></div>
+          <div className="grow br"><BirAmt field={`nolco${r}B`} data={data} set={set} /></div>
+          <div className="grow br"><BirAmt field={`nolco${r}C`} data={data} set={set} /></div>
+          <div className="grow br"><BirAmt field={`nolco${r}D`} data={data} set={set} /></div>
+          <div className="grow"><BirAmt field={`nolco${r}E`} data={data} set={set} /></div>
+        </div>
+      ))}
+      <div className="row b" style={{ borderTop: 0 }}>
+        <div className="bir-cell grow br" style={{ fontWeight: 700, display: "flex", alignItems: "center" }}>
+          <span className="bir-ino">{totalNo}</span>&nbsp;<span className="bir-cap">{totalLabel}</span>
+        </div>
+        <div style={{ width: 170 }}><BirAmt field={`nolco${totalNo}D`} data={data} set={set} /></div>
+      </div>
+    </>
+  );
+}
+
+// ── ATC radio grid (7 codes) ──
+function AtcGrid({ field }: { field: string }) {
+  const { is, pick } = useF();
+  return (
+    <div className="fld atc-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 18px" }}>
+      {ATC_CODES.map(([v, l]) => (
+        <BirCkRow key={v} on={is(field, v)} onClick={() => pick(field, v)}>
+          <b>{v}</b>&nbsp;{l}
+        </BirCkRow>
+      ))}
+    </div>
+  );
+}
+
+// ── TIN + Last Name strip for pages 2-4 ──
+function TinNameBand() {
+  const { tin, lastName } = useF();
+  return (
+    <>
+      <div className="row b" style={{ borderTop: 0, background: "var(--shade2)" }}>
+        <div className="grow br" style={{ padding: "2px 6px" }}>
+          <span className="bir-cap" style={{ fontWeight: 700 }}>TIN</span>
+        </div>
+        <div style={{ width: 360, flex: "none", padding: "2px 6px" }}>
+          <span className="bir-cap" style={{ fontWeight: 700 }}>Tax Filer&rsquo;s Last Name</span>
+        </div>
+      </div>
+      <div className="row b" style={{ borderTop: 0 }}>
+        <div className="bir-cell br grow" style={{ minHeight: 24, display: "flex", alignItems: "center" }}>
+          <BirBoxes value={tin} count={14} groups={[3, 3, 3, 5]} />
+        </div>
+        <div className="bir-cell" style={{ width: 360, flex: "none", minHeight: 24, display: "flex", alignItems: "center" }}>
+          <BirVal value={lastName} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
   const pick = (f: string, v: string) => set(f, data[f] === v ? "" : v);
   const is = (f: string, v: string) => data[f] === v;
@@ -74,149 +234,8 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
   const A = comp.A;
   const Bb = comp.B;
 
-  // ── shared row: number | label | A amount | B amount ──
-  function CRow({
-    no,
-    label,
-    sub,
-    base,
-    roA,
-    roB,
-    valA,
-    valB,
-    strong,
-    indent,
-  }: {
-    no?: ReactNode;
-    label: ReactNode;
-    sub?: string;
-    base: string;
-    roA?: boolean;
-    roB?: boolean;
-    valA?: number;
-    valB?: number;
-    strong?: boolean;
-    indent?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt">
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400, paddingLeft: indent ? 16 : undefined }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br">
-          <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
-        </div>
-        <div className="amtcell br">
-          <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
-        </div>
-      </div>
-    );
-  }
-
-  // ── grey "A) Taxpayer | B) Spouse" column header ──
-  function ABHead({ label }: { label: string }) {
-    return (
-      <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontWeight: 700, alignItems: "stretch", minHeight: 22 }}>
-        <div className="num" style={{ width: 28, flex: "none" }}></div>
-        <div className="desc" style={{ flex: 1, fontSize: 10.6, display: "flex", alignItems: "center", padding: "2px 6px" }}>
-          {label}
-        </div>
-        <div className="amtcell bl br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          A) Taxpayer/Filer
-        </div>
-        <div className="amtcell br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          B) Spouse
-        </div>
-      </div>
-    );
-  }
-
-  // ── light schedule sub-band (no amount heads) ──
-  function SchedBand({ children }: { children: ReactNode }) {
-    return (
-      <div className="bir-section b" style={{ borderTop: 0 }}>
-        {children}
-      </div>
-    );
-  }
-
-  // ── Schedule 6 detailed NOLCO table (Year + cols A-E) ──
-  function NolcoTable({ rows, totalNo, totalLabel }: { rows: number[]; totalNo: string; totalLabel: string }) {
-    const col = { padding: "3px 4px" } as const;
-    return (
-      <>
-        <div className="row b" style={{ borderTop: 0, background: "var(--shade2)", fontSize: 8.6, fontWeight: 700, textAlign: "center" }}>
-          <div style={{ width: 86, ...col }} className="br">Year Incurred</div>
-          <div className="grow br" style={col}>A. Amount</div>
-          <div className="grow br" style={col}>B. NOLCO Applied Previous Year/s</div>
-          <div className="grow br" style={col}>C. NOLCO Expired</div>
-          <div className="grow br" style={col}>D. NOLCO Applied Current Year</div>
-          <div className="grow" style={col}>E. Net Operating Loss (Unapplied) [E = A − (B+C+D)]</div>
-        </div>
-        {rows.map((r) => (
-          <div className="row b" style={{ borderTop: 0 }} key={"nolco" + r}>
-            <div style={{ width: 86, display: "flex", alignItems: "center" }} className="br">
-              <span className="num" style={{ width: 18, flex: "none" }}>{r}</span>
-              <BirText field={`nolco${r}Year`} data={data} set={set} lower />
-            </div>
-            <div className="grow br"><BirAmt field={`nolco${r}A`} data={data} set={set} /></div>
-            <div className="grow br"><BirAmt field={`nolco${r}B`} data={data} set={set} /></div>
-            <div className="grow br"><BirAmt field={`nolco${r}C`} data={data} set={set} /></div>
-            <div className="grow br"><BirAmt field={`nolco${r}D`} data={data} set={set} /></div>
-            <div className="grow"><BirAmt field={`nolco${r}E`} data={data} set={set} /></div>
-          </div>
-        ))}
-        <div className="row b" style={{ borderTop: 0 }}>
-          <div className="bir-cell grow br" style={{ fontWeight: 700, display: "flex", alignItems: "center" }}>
-            <span className="bir-ino">{totalNo}</span>&nbsp;<span className="bir-cap">{totalLabel}</span>
-          </div>
-          <div style={{ width: 170 }}><BirAmt field={`nolco${totalNo}D`} data={data} set={set} /></div>
-        </div>
-      </>
-    );
-  }
-
-  // ── ATC radio grid (7 codes) ──
-  function AtcGrid({ field }: { field: string }) {
-    return (
-      <div className="fld atc-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 18px" }}>
-        {ATC_CODES.map(([v, l]) => (
-          <BirCkRow key={v} on={is(field, v)} onClick={() => pick(field, v)}>
-            <b>{v}</b>&nbsp;{l}
-          </BirCkRow>
-        ))}
-      </div>
-    );
-  }
-
-  // ── TIN + Last Name strip for pages 2-4 ──
-  function TinNameBand() {
-    return (
-      <>
-        <div className="row b" style={{ borderTop: 0, background: "var(--shade2)" }}>
-          <div className="grow br" style={{ padding: "2px 6px" }}>
-            <span className="bir-cap" style={{ fontWeight: 700 }}>TIN</span>
-          </div>
-          <div style={{ width: 360, flex: "none", padding: "2px 6px" }}>
-            <span className="bir-cap" style={{ fontWeight: 700 }}>Tax Filer&rsquo;s Last Name</span>
-          </div>
-        </div>
-        <div className="row b" style={{ borderTop: 0 }}>
-          <div className="bir-cell br grow" style={{ minHeight: 24, display: "flex", alignItems: "center" }}>
-            <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
-          </div>
-          <div className="bir-cell" style={{ width: 360, flex: "none", minHeight: 24, display: "flex", alignItems: "center" }}>
-            <BirVal value={lastName} />
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
-    <>
+    <FormCtx.Provider value={{ data, set, is, pick, tin: (tp && tp.tin) || "", lastName }}>
       {/* ============================ PAGE 1 ============================ */}
       <div className="bir-sheet bir-1701 bir-1701-p1">
         <BirHeader
@@ -863,6 +882,6 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           </div>
         </div>
       </div>
-    </>
+    </FormCtx.Provider>
   );
 }
