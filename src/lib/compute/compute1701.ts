@@ -20,6 +20,10 @@ export interface Side1701 {
   gross: number;
   /** 'itemized' | 'osd' */
   method: string;
+  /** Schedule 4 ordinary itemized total (Item 13 / Sched 4 Item 18). */
+  itemizedOrdinary: number;
+  /** Schedule 5 special itemized total (Item 14). */
+  itemizedSpecial: number;
   deductions: number;
   netBiz: number;
   otherInc: number;
@@ -70,6 +74,10 @@ export function compute1701(d: FilingData): Comp1701 {
         ? num(d.s5_3amt) || num(d.s5_1amt) + num(d.s5_2amt)
         : num(d.s5_6amt) || num(d.s5_4amt) + num(d.s5_5amt);
     const itemizedDetail = sched4 + special;
+    // Expose the ordinary (Schedule 4) and special (Schedule 5) sub-totals so
+    // the form's Items 13/14/16 + Schedule 4 Item 18 show computed values.
+    o.itemizedOrdinary = sched4 > 0 ? sched4 : itemizedDetail > 0 ? 0 : num(d["deduct" + s]);
+    o.itemizedSpecial = special;
     o.deductions =
       o.method === "osd"
         ? roundPeso(o.netSales * 0.4)
