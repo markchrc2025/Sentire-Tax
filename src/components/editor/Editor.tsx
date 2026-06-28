@@ -29,6 +29,13 @@ export function Editor({ filingId }: { filingId: string }) {
   const [xmlMsg, setXmlMsg] = useState<string | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Form mode shows a live PDF preview by default; "edit" reveals the inline form.
+  const [formTab, setFormTab] = useState<"pdf" | "edit">("pdf");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfErr, setPdfErr] = useState(false);
+  const docRef = useRef<HTMLDivElement>(null);
+  const pdfReq = useRef(0);
 
   // fit-to-width (declared before the early return so hook order is stable)
   useEffect(() => {
@@ -41,6 +48,46 @@ export function Editor({ filingId }: { filingId: string }) {
     window.addEventListener("resize", recalc);
     return () => window.removeEventListener("resize", recalc);
   }, [fit, mode]);
+
+  // Live PDF preview: render the faithful form sheets to a real PDF whenever the
+  // PDF tab is open in Form mode, debounced so rapid edits collapse into one render.
+  useEffect(() => {
+    if (!filing || mode !== "form" || formTab !== "pdf") return;
+    setPdfBusy(true);
+    const timer = setTimeout(async () => {
+      const req = ++pdfReq.current;
+      try {
+        const root = docRef.current;
+        if (!root) return;
+        const found = Array.from(root.querySelectorAll<HTMLElement>(".bir-sheet"));
+        const sheets = found.length ? found : [root];
+        const { sheetsToPdfBlob } = await import("../../lib/pdf/renderPdf");
+        const blob = await sheetsToPdfBlob(sheets);
+        if (req !== pdfReq.current) return; // a newer edit superseded this render
+        const url = URL.createObjectURL(blob);
+        setPdfUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+        setPdfErr(false);
+      } catch (e) {
+        console.error("[pdf preview]", e);
+        if (req === pdfReq.current) setPdfErr(true);
+      } finally {
+        if (req === pdfReq.current) setPdfBusy(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, formTab, data, filing?.form]);
+
+  // Release the preview blob URL when it changes or the editor unmounts.
+  useEffect(
+    () => () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    },
+    [pdfUrl],
+  );
 
   if (!filing) {
     return (
@@ -138,6 +185,18 @@ export function Editor({ filingId }: { filingId: string }) {
           )}
         </span>
         {!guided && (
+          <div className="g-mode" style={{ marginLeft: 2 }}>
+            <button className={formTab === "pdf" ? "on" : ""} onClick={() => setFormTab("pdf")}>
+              <Icon d={SIco.file} size={14} />
+              PDF
+            </button>
+            <button className={formTab === "edit" ? "on" : ""} onClick={() => setFormTab("edit")}>
+              <Icon d={SIco.edit} size={14} />
+              Edit
+            </button>
+          </div>
+        )}
+        {!guided && formTab === "edit" && (
           <div className="s-zoom">
             <button
               className="s-iconbtn"
@@ -187,11 +246,26 @@ export function Editor({ filingId }: { filingId: string }) {
           />
         ) : (
           <div className="s-stage" ref={stageRef}>
-            <div className="s-stage-inner" style={{ zoom }}>
-              <div className="bir-doc" data-rate={(data.taxRate as string) || "graduated"}>
+            {/* The faithful form — visible when editing, off-screen (but laid out,
+                so it can be captured) when showing the PDF preview. */}
+            <div
+              className={formTab === "pdf" ? "s-pdf-source" : "s-stage-inner"}
+              style={formTab === "pdf" ? undefined : { zoom }}
+            >
+              <div className="bir-doc" ref={docRef} data-rate={(data.taxRate as string) || "graduated"}>
                 <FormView form={filing.form} tp={tp} data={data} set={set} comp={comp} />
               </div>
             </div>
+            {formTab === "pdf" && (
+              <div className="s-pdfwrap">
+                {pdfUrl ? (
+                  <iframe className="s-pdfframe" title="Form PDF preview" src={pdfUrl + "#view=FitH"} />
+                ) : (
+                  <div className="s-pdf-msg">{pdfErr ? "Couldn't render the PDF preview." : "Rendering PDF…"}</div>
+                )}
+                {pdfBusy && pdfUrl && <span className="s-pdf-badge">Updating…</span>}
+              </div>
+            )}
           </div>
         )}
 

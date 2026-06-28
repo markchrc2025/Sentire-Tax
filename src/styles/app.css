@@ -594,6 +594,7 @@
   min-height: 0;
 }
 .s-stage {
+  position: relative;
   overflow: auto;
   padding: 24px;
   background: #e9e3d9;
@@ -601,6 +602,42 @@
 .s-stage-inner {
   transform-origin: top center;
   margin: 0 auto;
+}
+
+/* Live PDF preview: the source form is laid out off-screen so it can be
+   captured; the rendered PDF fills the stage in a native viewer. */
+.s-pdf-source {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  zoom: 1;
+  pointer-events: none;
+}
+.s-pdfwrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.s-pdfframe {
+  flex: 1;
+  border: 0;
+  background: #525659;
+}
+.s-pdf-msg {
+  margin: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+.s-pdf-badge {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: rgba(20, 18, 15, 0.78);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 999px;
 }
 
 /* rail */
@@ -1433,6 +1470,15 @@
     zoom: 1 !important;
     width: auto !important;
     margin: 0 !important;
+  }
+  /* When printing from the PDF tab, print the real form (not the iframe):
+     bring the off-screen source back on-page and hide the preview. */
+  .s-pdf-source {
+    position: static !important;
+    left: 0 !important;
+  }
+  .s-pdfwrap {
+    display: none !important;
   }
   .bir-doc {
     zoom: 0.76;
