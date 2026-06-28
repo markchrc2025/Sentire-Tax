@@ -61,7 +61,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
   }
 
   return (
-    <div className="bir-sheet">
+    <div className="bir-sheet bir-1701a-p1">
       {/* ===== HEADER ===== */}
       <div className="row b">
         <div className="bir-formno br">
@@ -436,7 +436,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
       </div>
 
       {/* perjury + signature (left) | attachments (right) */}
-      <div className="row b" style={{ borderTop: 0 }}>
+      <div className="row b" style={{ borderTop: 0, minHeight: 132 }}>
         <div className="col br grow">
           <div className="bir-perjury bb" style={{ flex: 1 }}>
             I declare under the penalties of perjury that this return, and all its attachments, have been made in good
@@ -488,7 +488,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
           ["35", "Others (specify below)", "p35"],
         ] as Array<[string, string, string]>
       ).map(([no, lbl, k]) => (
-        <div className="row b" style={{ borderTop: 0 }} key={k}>
+        <div className="row b" style={{ borderTop: 0, minHeight: 34 }} key={k}>
           <div style={{ width: 180 }} className="bir-cell br">
             <span className="bir-ino">{no}</span> <span className="bir-cap">{lbl}</span>
           </div>
@@ -506,7 +506,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
           </div>
         </div>
       ))}
-      <div className="bir-foot b" style={{ borderTop: 0, display: "flex", minHeight: 58 }}>
+      <div className="bir-foot b" style={{ borderTop: 0, display: "flex", minHeight: 104 }}>
         <div className="grow br" style={{ padding: "5px 7px" }}>
           Machine Validation/Revenue Official Receipt Details (if not filed with an Authorized Agent Bank)
         </div>
