@@ -717,9 +717,12 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
       <div className="bir-part b" style={{ borderTop: 0 }}>
         Part V – Background Information on Spouse
       </div>
+
+      {/* 66 TIN | 67 RDO | 68 spouse type */}
       <div className="row b" style={{ borderTop: 0 }}>
         <div className="bir-cell br" style={{ width: 340 }}>
-          <span className="bir-ino">66</span> <span className="bir-cap">Spouse&rsquo;s TIN</span>
+          <span className="bir-ino">66</span>{" "}
+          <span className="bir-cap">Spouse&rsquo;s Taxpayer Identification Number (TIN)</span>
           <div style={{ marginTop: 3 }}>
             <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
           </div>
@@ -742,10 +745,95 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
           </div>
         </div>
       </div>
+
+      {/* 69 spouse ATC */}
+      <div className="bir-cell inline b" style={{ borderTop: 0, alignItems: "flex-start" }}>
+        <span className="lblgrp" style={{ paddingTop: 4 }}>
+          <span className="bir-ino">69</span> <span className="bir-cap">Alphanumeric Tax Code (ATC)</span>
+        </span>
+        <div className="fld atc-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 18px" }}>
+          <BirCkRow on={is("spouseAtc", "II012")} onClick={() => pick("spouseAtc", "II012")}>
+            <b>II012</b>&nbsp;Business Income - Graduated IT Rates
+          </BirCkRow>
+          <BirCkRow on={is("spouseAtc", "II014")} onClick={() => pick("spouseAtc", "II014")}>
+            <b>II014</b>&nbsp;Income from Profession – Graduated IT Rates
+          </BirCkRow>
+          <BirCkRow on={is("spouseAtc", "II015")} onClick={() => pick("spouseAtc", "II015")}>
+            <b>II015</b>&nbsp;Business Income - 8% IT Rate
+          </BirCkRow>
+          <BirCkRow on={is("spouseAtc", "II017")} onClick={() => pick("spouseAtc", "II017")}>
+            <b>II017</b>&nbsp;Income from Profession – 8% IT Rate
+          </BirCkRow>
+        </div>
+      </div>
+
+      {/* 70 spouse name */}
       <div className="bir-cell b" style={{ borderTop: 0 }}>
         <span className="bir-ino">70</span>{" "}
         <span className="bir-cap">Spouse&rsquo;s Name (Last Name, First Name, Middle Name)</span>
         <BirText field="spouseName" data={data} set={set} />
+      </div>
+
+      {/* 71 contact | 72 citizenship */}
+      <div className="row b" style={{ borderTop: 0 }}>
+        <div className="bir-cell inline br grow">
+          <span className="lblgrp">
+            <span className="bir-ino">71</span> <span className="bir-cap">Contact Number</span>
+          </span>
+          <div className="fld">
+            <BirText field="spouseContact" data={data} set={set} lower />
+          </div>
+        </div>
+        <div className="bir-cell inline grow">
+          <span className="lblgrp">
+            <span className="bir-ino">72</span> <span className="bir-cap">Citizenship</span>
+          </span>
+          <div className="fld">
+            <BirText field="spouseCitizenship" data={data} set={set} />
+          </div>
+        </div>
+      </div>
+
+      {/* 73 foreign credits | 74 foreign tax number */}
+      <div className="row b" style={{ borderTop: 0 }}>
+        <div className="bir-cell inline br grow">
+          <span className="lblgrp">
+            <span className="bir-ino">73</span> <span className="bir-cap">Claiming Foreign Tax Credits?</span>
+          </span>
+          <div className="fld" style={{ gap: 14 }}>
+            <BirCkRow on={is("spouseForeignCredit", "yes")} onClick={() => pick("spouseForeignCredit", "yes")}>
+              Yes
+            </BirCkRow>
+            <BirCkRow on={is("spouseForeignCredit", "no")} onClick={() => pick("spouseForeignCredit", "no")}>
+              No
+            </BirCkRow>
+          </div>
+        </div>
+        <div className="bir-cell inline grow">
+          <span className="lblgrp">
+            <span className="bir-ino">74</span> <span className="bir-cap">Foreign Tax Number</span>{" "}
+            <span className="bir-capi">(if applicable)</span>
+          </span>
+          <div className="fld">
+            <BirText field="spouseForeignTaxNo" data={data} set={set} />
+          </div>
+        </div>
+      </div>
+
+      {/* 75 spouse tax rate */}
+      <div className="bir-cell inline b" style={{ borderTop: 0, alignItems: "flex-start" }}>
+        <span className="lblgrp" style={{ paddingTop: 4 }}>
+          <span className="bir-ino">75</span> <span className="bir-cap">Tax Rate</span>
+        </span>
+        <div className="fld col" style={{ gap: 3, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <BirCkRow on={is("spouseTaxRate", "graduated")} onClick={() => pick("spouseTaxRate", "graduated")}>
+            Graduated rates with OSD as method of deduction
+          </BirCkRow>
+          <BirCkRow on={is("spouseTaxRate", "eight")} onClick={() => pick("spouseTaxRate", "eight")}>
+            8% in lieu of Graduated Rates under Sec. 24(A) &amp; Percentage Tax under Sec. 116 of NIRC{" "}
+            <i>[available if gross sales/receipts and other non-operating income do not exceed Three million pesos (P3M)]</i>
+          </BirCkRow>
+        </div>
       </div>
 
       {/* tax tables */}
