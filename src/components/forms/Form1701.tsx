@@ -16,6 +16,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1701 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
+import { num } from "../../lib/format";
 import { BirHeader, DeclSign, PartBand, PaymentDetails } from "../formparts";
 import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 
@@ -170,14 +171,26 @@ function NolcoTable({ rows, totalNo, totalLabel }: { rows: number[]; totalNo: st
           <div className="grow br"><BirAmt field={`nolco${r}B`} data={data} set={set} /></div>
           <div className="grow br"><BirAmt field={`nolco${r}C`} data={data} set={set} /></div>
           <div className="grow br"><BirAmt field={`nolco${r}D`} data={data} set={set} /></div>
-          <div className="grow"><BirAmt field={`nolco${r}E`} data={data} set={set} /></div>
+          {/* E. Net Operating Loss (Unapplied) = A − (B + C + D) — computed */}
+          <div className="grow">
+            <BirAmt
+              ro
+              value={
+                num(data[`nolco${r}A`]) -
+                (num(data[`nolco${r}B`]) + num(data[`nolco${r}C`]) + num(data[`nolco${r}D`]))
+              }
+            />
+          </div>
         </div>
       ))}
       <div className="row b" style={{ borderTop: 0 }}>
         <div className="bir-cell grow br" style={{ fontWeight: 700, display: "flex", alignItems: "center" }}>
           <span className="bir-ino">{totalNo}</span>&nbsp;<span className="bir-cap">{totalLabel}</span>
         </div>
-        <div style={{ width: 170 }}><BirAmt field={`nolco${totalNo}D`} data={data} set={set} /></div>
+        {/* Total NOLCO = sum of the D column (applied this year) — computed */}
+        <div style={{ width: 170 }}>
+          <BirAmt ro value={rows.reduce((t, r) => t + num(data[`nolco${r}D`]), 0)} />
+        </div>
       </div>
     </>
   );
@@ -680,7 +693,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="12" label="Gross Income/(Loss) from Operation (Item 10 Less 11)" base="gross_" roA roB valA={A.gross} valB={Bb.gross} strong />
           <CRow no="13" label="Ordinary Allowable Itemized Deductions (From Schedule 4 Item 18)" base="ded13_" roA roB valA={A.method === "osd" ? 0 : A.itemizedOrdinary} valB={Bb.method === "osd" ? 0 : Bb.itemizedOrdinary} />
           <CRow no="14" label="Special Allowable Itemized Deductions (From Schedule 5)" base="ded14_" roA roB valA={A.method === "osd" ? 0 : A.itemizedSpecial} valB={Bb.method === "osd" ? 0 : Bb.itemizedSpecial} />
-          <CRow no="15" label="Allowance for Net Operating Loss Carry Over (NOLCO)" base="sched15" />
+          <CRow no="15" label="Allowance for Net Operating Loss Carry Over (NOLCO) (From Schedule 6 Item 8 / 13)" base="nolco15_" roA roB valA={A.method === "osd" ? 0 : A.nolco} valB={Bb.method === "osd" ? 0 : Bb.nolco} />
           <CRow no="16" label="Total Allowable Itemized Deductions (Sum of 13 to 15)" base="ded16_" roA roB valA={A.method === "osd" ? 0 : A.deductions} valB={Bb.method === "osd" ? 0 : Bb.deductions} strong />
           <CRow no="17" label="OR Optional Standard Deduction (OSD) (40% of Item 10)" base="osd_" roA roB valA={A.method === "osd" ? A.deductions : 0} valB={Bb.method === "osd" ? Bb.deductions : 0} />
           <CRow no="18" label="Net Income/(Loss) (Itemized: 12 Less 16; OSD: 10 Less 17)" base="netinc_" roA roB valA={A.netBiz} valB={Bb.netBiz} strong />
@@ -771,7 +784,16 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         <div className="b" style={{ borderTop: 0 }}>
           <CRow no="1" label="Gross Income" base="nolco1" />
           <CRow no="2" label="Less: Ordinary Allowable Itemized Deductions" base="nolco2" />
-          <CRow no="3" label="Net Operating Loss (Item 1 Less Item 2)" base="nolco3_" strong />
+          <CRow
+            no="3"
+            label="Net Operating Loss (Item 1 Less Item 2)"
+            base="nolco3_"
+            roA
+            roB
+            valA={num(data.nolco1A) - num(data.nolco2A)}
+            valB={num(data.nolco1B) - num(data.nolco2B)}
+            strong
+          />
         </div>
         <SchedBand>6.A.1 – Taxpayer/Filer&rsquo;s Detailed Computation of Available NOLCO</SchedBand>
         <NolcoTable rows={[4, 5, 6, 7]} totalNo="8" totalLabel="Total NOLCO – Taxpayer/Filer (Sum of Items 4D to 7D) (To Schedule 3.A Item 15A)" />
