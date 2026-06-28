@@ -24,6 +24,8 @@ export interface Side1701 {
   itemizedOrdinary: number;
   /** Schedule 5 special itemized total (Item 14). */
   itemizedSpecial: number;
+  /** NOLCO applied this year (Item 15 / Schedule 6 Item 8 or 13). */
+  nolco: number;
   deductions: number;
   netBiz: number;
   otherInc: number;
@@ -73,9 +75,14 @@ export function compute1701(d: FilingData): Comp1701 {
       s === "A"
         ? num(d.s5_3amt) || num(d.s5_1amt) + num(d.s5_2amt)
         : num(d.s5_6amt) || num(d.s5_4amt) + num(d.s5_5amt);
-    const itemizedDetail = sched4 + special;
-    // Expose the ordinary (Schedule 4) and special (Schedule 5) sub-totals so
-    // the form's Items 13/14/16 + Schedule 4 Item 18 show computed values.
+    // NOLCO applied this year = total of the "D" column (NOLCO Applied Current
+    // Year) in the per-side Schedule 6 detail table — taxpayer rows 4-7
+    // (Sched 6.A.1, → Item 8), spouse rows 9-12 (Sched 6.A.2, → Item 13).
+    const nolcoRows = s === "A" ? [4, 5, 6, 7] : [9, 10, 11, 12];
+    o.nolco = o.method === "osd" ? 0 : nolcoRows.reduce((t, r) => t + num(d[`nolco${r}D`]), 0);
+    const itemizedDetail = sched4 + special + o.nolco;
+    // Expose the ordinary (Schedule 4), special (Schedule 5) and NOLCO sub-totals
+    // so the form's Items 13/14/15/16 + Schedule 4 Item 18 show computed values.
     o.itemizedOrdinary = sched4 > 0 ? sched4 : itemizedDetail > 0 ? 0 : num(d["deduct" + s]);
     o.itemizedSpecial = special;
     o.deductions =
