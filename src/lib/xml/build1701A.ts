@@ -115,7 +115,7 @@ export function build1701A(filing: Filing, tp: Taxpayer | null, comp: Comp1701A)
     P(`txt${i}B`, amt(B[("i" + i) as keyof typeof B]));
   }
 
-  // ---- Spouse background (items 66-70) ----
+  // ---- Spouse background (items 66-75) ----
   const stin = String(d.spouseTin || "").replace(/\D/g, "");
   P("txtSpouseTIN1", stin.slice(0, 3));
   P("txtSpouseTIN2", stin.slice(3, 6));
@@ -124,18 +124,22 @@ export function build1701A(filing: Filing, tp: Taxpayer | null, comp: Comp1701A)
   P("txtSpouseRDOCode", (d.spouseRdo as string) || "000");
   P("optSpouseTaxType_1", rb(d.spouseType === "single"));
   P("optSpouseTaxType_2", rb(d.spouseType === "prof"));
-  P("optSpouseATC_1", rb(false));
-  P("optSpouseATC_2", rb(false));
-  P("optSpouseATC_3", rb(false));
-  P("optSpouseATC_4", rb(false));
+  // 69 Alphanumeric Tax Code (ATC)
+  P("optSpouseATC_1", rb(d.spouseAtc === "II012"));
+  P("optSpouseATC_2", rb(d.spouseAtc === "II014"));
+  P("optSpouseATC_3", rb(d.spouseAtc === "II015"));
+  P("optSpouseATC_4", rb(d.spouseAtc === "II017"));
   P("txtSpouseName", enc(d.spouseName));
-  P("txtSpouseTelNum", "");
-  P("txtSpouseCitizenship", "");
-  P("optSpouseFTC_1", rb(false));
-  P("optSpouseFTC_2", rb(false));
-  P("txtSpouseFTN", "");
-  P("optSpouseTaxRate_1", rb(false));
-  P("optSpouseTaxRate_2", rb(false));
+  // 71 Contact Number | 72 Citizenship
+  P("txtSpouseTelNum", enc(d.spouseContact));
+  P("txtSpouseCitizenship", enc(d.spouseCitizenship));
+  // 73 Claiming Foreign Tax Credits? | 74 Foreign Tax Number
+  P("optSpouseFTC_1", rb(d.spouseForeignCredit === "yes"));
+  P("optSpouseFTC_2", rb(d.spouseForeignCredit === "no"));
+  P("txtSpouseFTN", enc(d.spouseForeignTaxNo));
+  // 75 Tax Rate
+  P("optSpouseTaxRate_1", rb(d.spouseTaxRate === "graduated"));
+  P("optSpouseTaxRate_2", rb(d.spouseTaxRate === "eight"));
 
   // ---- meta / package fields ----
   P("txtCurrentPage", "1");
