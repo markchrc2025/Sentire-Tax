@@ -53,6 +53,7 @@ export function makeGuided(data: FilingData, set: SetFn) {
     };
 
     const Money = ({ field, value, ro }: { field?: string; value?: number; ro?: boolean }) => {
+    const [focused, setFocused] = useState(false);
     if (ro) {
       return (
         <div className="g-money ro">
@@ -61,15 +62,19 @@ export function makeGuided(data: FilingData, set: SetFn) {
         </div>
       );
     }
+    const v0 = field ? rawStr(field) : "";
+    const display = focused || v0.trim() === "" ? v0 : fmtAmt(num(v0));
     return (
       <div className="g-money">
         <span className="peso">₱</span>
         <input
           inputMode="decimal"
-          value={field ? rawStr(field) : ""}
+          value={display}
           placeholder="0"
+          onFocus={() => setFocused(true)}
           onChange={(e) => field && set(field, e.target.value.replace(/[^0-9.\-]/g, ""))}
           onBlur={(e) => {
+            setFocused(false);
             if (!field) return;
             const n = num(e.target.value);
             set(field, e.target.value.trim() === "" ? "" : String(roundPeso(n)));
