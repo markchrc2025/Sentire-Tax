@@ -6,6 +6,7 @@ import type { Comp1701A } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import { SEAL_SRC } from "../formparts";
 import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { fmtAmt } from "../../lib/format";
 
 function fmtDOB(iso?: string): string {
   if (!iso) return "";
@@ -406,11 +407,12 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
           <div className="desc" style={{ fontWeight: 700 }}>
             Aggregate Amount Payable/(Overpayment) (Sum of Items 29A &amp; 29B)
           </div>
-          {/* Aggregate sits under column B (far right) with column A shaded, as
-              on the printed form; both cells keep the 188px grid so dividers align. */}
-          <div className="amtcell bl br" style={{ background: "var(--shade2)" }}></div>
-          <div className="amtcell">
-            <BirAmt ro value={comp.i30} />
+          {/* Aggregate (29A + 29B) is a single value spanning both columns,
+              centered — no internal A|B divider for this row. */}
+          <div className="amtcell bl" style={{ width: 376, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#16263a", fontVariantNumeric: "tabular-nums" }}>
+              {fmtAmt(comp.i30)}
+            </span>
           </div>
         </div>
       </div>
