@@ -567,7 +567,7 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
   }
 
   return (
-    <div className="bir-sheet" data-rate={(data.taxRate as string) || "graduated"}>
+    <div className="bir-sheet bir-1701a-p2" data-rate={(data.taxRate as string) || "graduated"}>
       {/* header strip */}
       <div className="row b">
         <div className="bir-formno br">
@@ -657,8 +657,8 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
           <div className="amtcell bl br"></div>
           <div className="amtcell br"></div>
         </div>
-        <CRow no="41" label={<BirText field="i41label" data={data} set={set} placeholder="specify" />} base="i41" valA={comp.A.i41} valB={comp.B.i41} />
-        <CRow no="42" label={<BirText field="i42label" data={data} set={set} placeholder="specify" />} base="i42" valA={comp.A.i42} valB={comp.B.i42} />
+        <CRow no="41" label={<BirText field="i41label" data={data} set={set} />} base="i41" valA={comp.A.i41} valB={comp.B.i41} />
+        <CRow no="42" label={<BirText field="i42label" data={data} set={set} />} base="i42" valA={comp.A.i42} valB={comp.B.i42} />
         <CRow no="43" label="Amount Received/Share in Income by a Partner from General Professional Partnership (GPP)" base="i43" valA={comp.A.i43} valB={comp.B.i43} />
         <CRow no="44" label="Total Other Income (Sum of Items 41 to 43)" base="i44" roA roB valA={comp.A.i44} valB={comp.B.i44} />
         <CRow no="45" label="Total Taxable Income (Sum of Items 40 and 44)" base="i45" roA roB valA={comp.A.i45} valB={comp.B.i45} strong />
@@ -688,8 +688,8 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
           <div className="amtcell bl br"></div>
           <div className="amtcell br"></div>
         </div>
-        <CRow no="50" label={<BirText field="i50label" data={data} set={set} placeholder="specify" />} base="i50" valA={comp.A.i50} valB={comp.B.i50} />
-        <CRow no="51" label={<BirText field="i51label" data={data} set={set} placeholder="specify" />} base="i51" valA={comp.A.i51} valB={comp.B.i51} />
+        <CRow no="50" label={<BirText field="i50label" data={data} set={set} />} base="i50" valA={comp.A.i50} valB={comp.B.i50} />
+        <CRow no="51" label={<BirText field="i51label" data={data} set={set} />} base="i51" valA={comp.A.i51} valB={comp.B.i51} />
         <CRow no="52" label="Total Other Non-operating Income (Sum of Items 50 and 51)" base="i52" roA roB valA={comp.A.i52} valB={comp.B.i52} />
         <CRow no="53" label="Total Taxable Income (Sum of Items 49 and 52)" base="i53" roA roB valA={comp.A.i53} valB={comp.B.i53} />
         <CRow no="54" label="Less: Allowable reduction of P 250,000 (purely self-employed individuals and/or professionals)" base="i54" roA roB valA={comp.A.i54} valB={comp.B.i54} />
@@ -718,7 +718,7 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
         Part V – Background Information on Spouse
       </div>
       <div className="row b" style={{ borderTop: 0 }}>
-        <div className="bir-cell br" style={{ width: 270 }}>
+        <div className="bir-cell br" style={{ width: 340 }}>
           <span className="bir-ino">66</span> <span className="bir-cap">Spouse&rsquo;s TIN</span>
           <div style={{ marginTop: 3 }}>
             <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
