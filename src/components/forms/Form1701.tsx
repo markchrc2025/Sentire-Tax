@@ -133,10 +133,11 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <div className="fld" style={{ gap: 14 }}>
             {(
               [
-                ["comp_biz", "Compensation & Business/Profession (Mixed)"],
-                ["biz", "Business/Profession only"],
+                ["single", "Single Proprietor"],
+                ["prof", "Professional"],
                 ["estate", "Estate"],
                 ["trust", "Trust"],
+                ["comp", "Compensation Earner"],
               ] as Array<[string, string]>
             ).map(([v, l]) => (
               <BirCkRow key={v} on={is("taxpayerType", v)} onClick={() => pick("taxpayerType", v)}>

@@ -79,7 +79,7 @@ export function build1701(filing: Filing, tp: Taxpayer | null, comp: Comp1701): 
   P("rdoPg1I6TaxpayerTypeP", rb(taxType === "prof" || taxType === "biz" || taxType === "comp_biz"));
   P("rdoPg1I6TaxpayerTypeE", rb(taxType === "estate"));
   P("rdoPg1I6TaxpayerTypeT", rb(taxType === "trust"));
-  P("rdoPg1I6TaxpayerTypeC", rb(taxType === "corp"));
+  P("rdoPg1I6TaxpayerTypeC", rb(taxType === "comp")); // Compensation Earner
 
   // ATC — 7 radios in the authentic order II012/014/013/011/015/017/016.
   const atc = (d.atc as string) || "";
@@ -186,7 +186,7 @@ export function build1701(filing: Filing, tp: Taxpayer | null, comp: Comp1701): 
   P("txtPg2I2SpouseRDOCode", (d.spouseRdo as string) || "000");
   P("rdoPg2I3SpouseTypeS", rb(d.spouseType === "single"));
   P("rdoPg2I3SpouseTypeP", rb(d.spouseType === "prof" || d.spouseType === "biz"));
-  P("rdoPg2I3SpouseTypeC", rb(d.spouseType === "corp"));
+  P("rdoPg2I3SpouseTypeC", rb(d.spouseType === "comp")); // Compensation Earner
   const satc = (d.spouseAtc as string) || "";
   P("rdoPg2I4ATC_II012", rb(satc === "II012"));
   P("rdoPg2I4ATC_II014", rb(satc === "II014"));
@@ -196,19 +196,21 @@ export function build1701(filing: Filing, tp: Taxpayer | null, comp: Comp1701): 
   P("rdoPg2I4ATC_II017", rb(satc === "II017"));
   P("rdoPg2I4ATC_II016", rb(satc === "II016"));
   P("txtPg2I5SpouseName", enc(d.spouseName));
-  E("txtPg2I6TelNum");
-  E("txtPg2I7Citizenship");
-  P("rdoPg2I8ForeignTaxCreditsYes", rb(false));
-  P("rdoPg2I8ForeignTaxCreditsNo", rb(false));
-  E("txtPg2I9ForeignTaxNumber");
-  P("rdoPg2I10IncomeExemptYes", rb(false));
-  P("rdoPg2I10IncomeExemptNo", rb(false));
-  P("rdoPg2I11IncomeSpecialYes", rb(false));
-  P("rdoPg2I11IncomeSpecialNo", rb(false));
-  P("rdoPg2I12TaxRateG", rb(false));
-  P("rdoPg2I12AMethodDeductionI", rb(false));
-  P("rdoPg2I12AMethodDeductionO", rb(false));
-  P("rdoPg2I12TaxRateP", rb(false));
+  P("txtPg2I6TelNum", enc(d.spouseContact));
+  P("txtPg2I7Citizenship", enc(d.spouseCitizenship));
+  P("rdoPg2I8ForeignTaxCreditsYes", rb(d.spouseForeignCredit === "yes"));
+  P("rdoPg2I8ForeignTaxCreditsNo", rb(d.spouseForeignCredit === "no"));
+  P("txtPg2I9ForeignTaxNumber", enc(d.spouseForeignTaxNo));
+  P("rdoPg2I10IncomeExemptYes", rb(d.spouseIncomeExempt === "yes"));
+  P("rdoPg2I10IncomeExemptNo", rb(d.spouseIncomeExempt === "no"));
+  P("rdoPg2I11IncomeSpecialYes", rb(d.spouseIncomeSpecial === "yes"));
+  P("rdoPg2I11IncomeSpecialNo", rb(d.spouseIncomeSpecial === "no"));
+  const srate = (d.spouseRate as string) || "";
+  const smethod = (d.spouseMethod as string) || "osd";
+  P("rdoPg2I12TaxRateG", rb(srate === "graduated"));
+  P("rdoPg2I12AMethodDeductionI", rb(srate !== "eight" && srate !== "" && smethod === "itemized"));
+  P("rdoPg2I12AMethodDeductionO", rb(srate !== "eight" && srate !== "" && smethod !== "itemized"));
+  P("rdoPg2I12TaxRateP", rb(srate === "eight"));
 
   // Schedule 1a — claimed dependents / qualified dependent (checkbox + name + TIN)
   P("chkPg2IShed1a_1Taxpayer", rb(false));
