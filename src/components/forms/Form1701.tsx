@@ -678,11 +678,11 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="10" label="Net Sales/Revenues/Receipts/Fees (Item 8 Less 9)" base="netSales_" roA roB valA={A.netSales} valB={Bb.netSales} strong />
           <CRow no="11" label="Less: Cost of Sales/Services (if Itemized)" base="cogs" valA={A.cogs} valB={Bb.cogs} />
           <CRow no="12" label="Gross Income/(Loss) from Operation (Item 10 Less 11)" base="gross_" roA roB valA={A.gross} valB={Bb.gross} strong />
-          <CRow no="13" label="Ordinary Allowable Itemized Deductions (From Schedule 4 Item 18)" base="deduct" roA={A.method === "osd"} roB={Bb.method === "osd"} valA={A.deductions} valB={Bb.deductions} />
-          <CRow no="14" label="Special Allowable Itemized Deductions (From Schedule 5)" base="sched14" />
+          <CRow no="13" label="Ordinary Allowable Itemized Deductions (From Schedule 4 Item 18)" base="ded13_" roA roB valA={A.method === "osd" ? 0 : A.itemizedOrdinary} valB={Bb.method === "osd" ? 0 : Bb.itemizedOrdinary} />
+          <CRow no="14" label="Special Allowable Itemized Deductions (From Schedule 5)" base="ded14_" roA roB valA={A.method === "osd" ? 0 : A.itemizedSpecial} valB={Bb.method === "osd" ? 0 : Bb.itemizedSpecial} />
           <CRow no="15" label="Allowance for Net Operating Loss Carry Over (NOLCO)" base="sched15" />
-          <CRow no="16" label="Total Allowable Itemized Deductions (Sum of 13 to 15)" base="sched16_" />
-          <CRow no="17" label="OR Optional Standard Deduction (OSD) (40% of Item 10)" base="osd_" roA={A.method === "osd"} roB={Bb.method === "osd"} valA={A.method === "osd" ? A.deductions : undefined} valB={Bb.method === "osd" ? Bb.deductions : undefined} />
+          <CRow no="16" label="Total Allowable Itemized Deductions (Sum of 13 to 15)" base="ded16_" roA roB valA={A.method === "osd" ? 0 : A.deductions} valB={Bb.method === "osd" ? 0 : Bb.deductions} strong />
+          <CRow no="17" label="OR Optional Standard Deduction (OSD) (40% of Item 10)" base="osd_" roA roB valA={A.method === "osd" ? A.deductions : 0} valB={Bb.method === "osd" ? Bb.deductions : 0} />
           <CRow no="18" label="Net Income/(Loss) (Itemized: 12 Less 16; OSD: 10 Less 17)" base="netinc_" roA roB valA={A.netBiz} valB={Bb.netBiz} strong />
           <CRow no="19" label={<BirText field="oni1descA" data={data} set={set} placeholder="Add: Other Non-Operating Income (specify)" />} base="oni1" />
           <CRow no="20" label={<BirText field="oni2descA" data={data} set={set} placeholder="Other Non-Operating Income (specify)" />} base="oni2" />
@@ -723,7 +723,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="17b" label="Others — Professional Fees" base="s4_17b" indent />
           <CRow no="17c" label="Others — Security Services" base="s4_17c" indent />
           <CRow no="17d" label={<BirText field="s4_17ddescA" data={data} set={set} placeholder="Others (specify)" />} base="s4_17d" indent />
-          <CRow no="18" label="Total Ordinary Allowable Itemized Deductions (Sum of 1 to 17d) (To Schedule 3.A Item 13)" base="deduct" roA={A.method === "osd"} roB={Bb.method === "osd"} valA={A.deductions} valB={Bb.deductions} strong />
+          <CRow no="18" label="Total Ordinary Allowable Itemized Deductions (Sum of 1 to 17d) (To Schedule 3.A Item 13)" base="s4tot_" roA roB valA={A.itemizedOrdinary} valB={Bb.itemizedOrdinary} strong />
         </div>
 
         {/* Schedule 5 — Special Allowable Itemized Deductions */}
