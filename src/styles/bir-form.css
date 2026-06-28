@@ -157,6 +157,12 @@
 .bir-line .num { width: 28px; flex: none; font-size: 12px; font-weight: 700; padding: 3px 2px 0 6px; }
 .bir-line .desc { flex: 1; font-size: 12px; line-height: 1.16; padding: 2px 6px; display: flex; align-items: center; }
 .bir-line .desc small { font-size: 10.4px; color: #444; }
+
+/* 1701A page 1 leaves spare vertical space, so let its dense sections breathe:
+   taller Part II rows and a roomier, more legible declaration / signature. */
+.bir-1701a-p1 .bir-line { min-height: 25px; }
+.bir-1701a-p1 .bir-perjury { font-size: 10.6px; line-height: 1.45; padding: 7px 9px; }
+.bir-1701a-p1 .bir-sign { font-size: 10.6px; padding: 11px 8px 6px; }
 .bir-doc .amtcell { width: 188px; flex: none; }
 .bir-amthead { font-size: 11.6px; font-weight: 700; text-align: center; padding: 4px; line-height: 1.14; white-space: nowrap; }
 
