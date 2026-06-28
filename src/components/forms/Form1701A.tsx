@@ -52,7 +52,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
         <div className="amtcell bl br">
           <BirAmt field={fieldBase + "A"} data={data} set={set} ro={roA} value={valA} />
         </div>
-        <div className="amtcell br">
+        <div className="amtcell">
           <BirAmt field={fieldBase + "B"} data={data} set={set} ro={roB} value={valB} />
         </div>
       </div>
@@ -378,7 +378,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
         <div className="amtcell bl br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           A) Taxpayer/Filer
         </div>
-        <div className="amtcell br bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="amtcell bir-amthead" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           B) Spouse
         </div>
       </div>
@@ -394,7 +394,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
             Add: Penalties
           </div>
           <div className="amtcell bl br"></div>
-          <div className="amtcell br"></div>
+          <div className="amtcell"></div>
         </div>
         <Row2 no="25" label="Surcharge" fieldBase="i25" valA={comp.A.i25} valB={comp.B.i25} />
         <Row2 no="26" label="Interest" fieldBase="i26" valA={comp.A.i26} valB={comp.B.i26} />
@@ -406,7 +406,10 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
           <div className="desc" style={{ fontWeight: 700 }}>
             Aggregate Amount Payable/(Overpayment) (Sum of Items 29A &amp; 29B)
           </div>
-          <div className="amtcell bl br" style={{ width: 300 }}>
+          {/* Aggregate sits under column B (far right) with column A shaded, as
+              on the printed form; both cells keep the 188px grid so dividers align. */}
+          <div className="amtcell bl br" style={{ background: "var(--shade2)" }}></div>
+          <div className="amtcell">
             <BirAmt ro value={comp.i30} />
           </div>
         </div>
