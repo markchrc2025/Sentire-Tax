@@ -78,7 +78,11 @@ export function compute1701(d: FilingData): Comp1701 {
     o.payable = o.taxDue - o.credits;
     o.installment = num(d["install" + s]);
     o.afterInstall = o.payable - o.installment;
-    o.penalties = num(d["pen" + s]);
+    // Penalties: the faithful form splits these into Interest / Surcharge /
+    // Compromise (items 27-29); the guided uses a single "pen" bucket. Sum the
+    // three split lines when present, else fall back to the single field.
+    const split = num(d["interest" + s]) + num(d["surcharge" + s]) + num(d["compromise" + s]);
+    o.penalties = split > 0 ? split : num(d["pen" + s]);
     o.totalPayable = o.afterInstall + o.penalties;
     out[s] = o;
   });
