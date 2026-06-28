@@ -31,11 +31,13 @@
 .bir-doc .row { display: flex; }
 .bir-doc .col { display: flex; flex-direction: column; }
 .bir-doc .grow { flex: 1; }
-.bir-doc .b { border: 0.8px solid var(--ln); }
-.bir-doc .bt { border-top: 0.8px solid var(--ln); }
-.bir-doc .bb { border-bottom: 0.8px solid var(--ln); }
-.bir-doc .bl { border-left: 0.8px solid var(--ln); }
-.bir-doc .br { border-right: 0.8px solid var(--ln); }
+/* 1px (not hairline 0.8px) so the column dividers don't sub-pixel-round away
+   when the form is scaled below 100% at "Fit" zoom. */
+.bir-doc .b { border: 1px solid var(--ln); }
+.bir-doc .bt { border-top: 1px solid var(--ln); }
+.bir-doc .bb { border-bottom: 1px solid var(--ln); }
+.bir-doc .bl { border-left: 1px solid var(--ln); }
+.bir-doc .br { border-right: 1px solid var(--ln); }
 
 /* header */
 .bir-formno {
