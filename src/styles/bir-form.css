@@ -163,6 +163,13 @@
 .bir-1701a-p1 .bir-line { min-height: 25px; }
 .bir-1701a-p1 .bir-perjury { font-size: 10.6px; line-height: 1.45; padding: 7px 9px; }
 .bir-1701a-p1 .bir-sign { font-size: 10.6px; padding: 11px 8px 6px; }
+
+/* The printed BIR form has no shaded data cells — every amount box is white,
+   computed totals are simply set in bold. The grey read-only tint is an
+   editing affordance that doesn't belong on the print-faithful sheet, so drop
+   it here (computed cells stay distinguishable by their bold weight). */
+.bir-1701a-p1 .bir-amt.ro,
+.bir-1701a-p2 .bir-amt.ro { background: #fff; }
 .bir-doc .amtcell { width: 188px; flex: none; }
 .bir-amthead { font-size: 11.6px; font-weight: 700; text-align: center; padding: 4px; line-height: 1.14; white-space: nowrap; }
 
