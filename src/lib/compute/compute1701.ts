@@ -5,6 +5,12 @@ import type { FilingData } from "../../types";
 import { num, roundPeso } from "../format";
 import { graduatedTax as grad } from "../taxTables";
 
+// Schedule 4 ordinary-itemized-deduction row keys (16 categories + 17a-d).
+const SCHED4_KEYS = [
+  "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
+  "17a", "17b", "17c", "17d",
+];
+
 export interface Side1701 {
   comp: number;
   sales: number;
@@ -55,7 +61,21 @@ export function compute1701(d: FilingData): Comp1701 {
     o.cogs = num(d["cogs" + s]);
     o.gross = o.netSales - o.cogs;
     o.method = (d["method" + s] as string) || "osd";
-    o.deductions = o.method === "osd" ? roundPeso(o.netSales * 0.4) : num(d["deduct" + s]);
+    // Itemized deductions: prefer the detailed Schedule 4 (ordinary) + Schedule 5
+    // (special) line entries; fall back to the single aggregate field if none
+    // were entered. OSD is always 40% of net sales.
+    const sched4 = SCHED4_KEYS.reduce((t, k) => t + num(d[`s4_${k}${s}`]), 0);
+    const special =
+      s === "A"
+        ? num(d.s5_3amt) || num(d.s5_1amt) + num(d.s5_2amt)
+        : num(d.s5_6amt) || num(d.s5_4amt) + num(d.s5_5amt);
+    const itemizedDetail = sched4 + special;
+    o.deductions =
+      o.method === "osd"
+        ? roundPeso(o.netSales * 0.4)
+        : itemizedDetail > 0
+          ? itemizedDetail
+          : num(d["deduct" + s]);
     o.netBiz = o.gross - o.deductions;
     o.otherInc = num(d["other" + s]);
     o.netBizTotal = o.netBiz + o.otherInc;

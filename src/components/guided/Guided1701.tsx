@@ -27,6 +27,26 @@ const ATC_OPTIONS = [
   { val: "II017", code: "II017", title: "Income from Profession — 8% IT Rate" },
 ];
 
+// Schedule 4 ordinary allowable itemized deduction categories (items 1-16).
+const SCHED4 = [
+  "Amortizations",
+  "Bad Debts",
+  "Charitable and Other Contributions",
+  "Depletion",
+  "Depreciation",
+  "Entertainment, Amusement and Recreation",
+  "Fringe Benefits",
+  "Interest",
+  "Losses",
+  "Pension Trusts",
+  "Rental",
+  "Research and Development",
+  "Salaries, Wages and Allowances",
+  "SSS, GSIS, Philhealth, HDMF and Other Contributions",
+  "Taxes and Licenses",
+  "Transportation and Travel",
+];
+
 export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedProps<Comp1701>) {
   const F = makeGuided(data, set);
   const name = gName(tp);
@@ -263,9 +283,9 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
             <F.Money field="cogsA" />
           </F.Q>
           {rateA !== "eight" && data.methodA === "itemized" && (
-            <F.Q label="Allowable Itemized Deductions" help="Total of your Schedule 4 ordinary itemized deductions.">
-              <F.Money field="deductA" />
-            </F.Q>
+            <p className="g-q-help" style={{ marginTop: -4 }}>
+              Enter your itemized business expenses in the next step (Schedule 4 &amp; 5).
+            </p>
           )}
           <F.Q label="Add: Other Taxable / Non-Operating Income">
             <F.Money field="otherA" />
@@ -280,6 +300,55 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
         </>
       ),
     },
+  );
+
+  // ───────────────────────── Part V — itemized deductions (Schedule 4 & 5)
+  if (rateA !== "eight" && data.methodA === "itemized") {
+    steps.push({
+      part: "Part V",
+      tab: "Expenses",
+      title: "Itemized deductions (Schedule 4 & 5)",
+      desc: "Enter your business expenses by category. They total into your Ordinary Allowable Itemized Deductions and reduce your taxable income.",
+      render: () => (
+        <>
+          {SCHED4.map((lbl, i) => (
+            <F.Q key={`s4_${i + 1}`} label={`${i + 1}. ${lbl}`}>
+              <F.Money field={`s4_${i + 1}A`} />
+            </F.Q>
+          ))}
+          <F.Q label="17a. Others — Janitorial and Messengerial Services">
+            <F.Money field="s4_17aA" />
+          </F.Q>
+          <F.Q label="17b. Others — Professional Fees">
+            <F.Money field="s4_17bA" />
+          </F.Q>
+          <F.Q label="17c. Others — Security Services">
+            <F.Money field="s4_17cA" />
+          </F.Q>
+          <F.Q label="17d. Others (specify)">
+            <F.Txt field="s4_17ddescA" ph="Specify (optional)" maxw={280} />
+            <div style={{ height: 8 }} />
+            <F.Money field="s4_17dA" />
+          </F.Q>
+          <div className="g-subsec">
+            <div className="g-subsec-h">Schedule 5 — Special Allowable Itemized Deductions (optional)</div>
+            <F.Q label="Total Special Allowable Itemized Deductions" help="Deductions allowed under special laws, with legal basis.">
+              <F.Money field="s5_3amt" />
+            </F.Q>
+          </div>
+          <F.Result
+            rows={[
+              { label: "Total allowable deductions (Sched 4 + 5)", value: A.deductions },
+              { label: "Net business income", value: A.netBizTotal },
+              { label: "Tax due", value: A.taxDue, big: true },
+            ]}
+          />
+        </>
+      ),
+    });
+  }
+
+  steps.push(
     {
       part: "Part VII",
       tab: "Credits",
