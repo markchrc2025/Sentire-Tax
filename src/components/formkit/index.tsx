@@ -1,7 +1,7 @@
 // formkit/index.tsx — shared faithful-form primitives.
 // Ported from bir-formkit.jsx (BirBoxes, BirAmt, BirText, BirVal, BirCk, BirCkRow).
 
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import type { FilingData, FilingRow } from "../../types";
 import { fmtAmt, num, roundPeso } from "../../lib/format";
 
@@ -99,15 +99,24 @@ export function BirAmt({
       />
     );
   }
+  return <AmtInput field={field} data={data} set={set} />;
+}
+
+/** Editable amount input: comma-formatted when idle, raw while being typed. */
+function AmtInput({ field, data, set }: { field?: string; data?: FilingData; set?: FieldSetFn }) {
+  const [focused, setFocused] = useState(false);
   const value0 = field ? raw(data, field) : "";
+  const display = focused || value0.trim() === "" ? value0 : fmtAmt(num(value0));
   return (
     <input
       className="bir-amt"
       inputMode="decimal"
-      value={value0}
+      value={display}
       placeholder="0"
+      onFocus={() => setFocused(true)}
       onChange={(e) => field && set?.(field, e.target.value.replace(/[^0-9.\-]/g, ""))}
       onBlur={(e) => {
+        setFocused(false);
         if (!field || !set) return;
         const n = num(e.target.value);
         set(field, n === 0 && e.target.value.trim() === "" ? "" : String(roundPeso(n)));
