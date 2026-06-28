@@ -210,6 +210,82 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
     ),
   });
 
+  // STEP — Part V: Spouse background (only when married)
+  if (married) {
+    steps.push({
+      part: "Part V",
+      tab: "Spouse",
+      title: "Spouse background information",
+      desc: "Since you’re married, the return needs your spouse’s background details (Part V). Fill in what applies — leave blank if not.",
+      render: () => (
+        <>
+          <Q item="Item 66" label="Spouse’s TIN" help="Your spouse’s Taxpayer Identification Number (digits only).">
+            <Txt field="spouseTin" ph="000 000 000 00000" maxw={260} />
+          </Q>
+          <Q item="Item 67" label="Spouse’s RDO Code">
+            <Txt field="spouseRdo" ph="000" maxw={120} />
+          </Q>
+          <Q item="Item 68" label="Filer’s Spouse Type">
+            <Cards
+              field="spouseType"
+              cols={2}
+              options={[
+                { val: "single", title: "Single Proprietor", note: "Runs a business / sole proprietorship." },
+                { val: "prof", title: "Professional", note: "Earns from a profession or practice." },
+              ]}
+            />
+          </Q>
+          <Q item="Item 69" label="Spouse’s Alphanumeric Tax Code (ATC)">
+            <Cards
+              field="spouseAtc"
+              cols={2}
+              options={[
+                { val: "II012", code: "II012", title: "Business Income — Graduated IT Rates" },
+                { val: "II014", code: "II014", title: "Income from Profession — Graduated IT Rates" },
+                { val: "II015", code: "II015", title: "Business Income — 8% IT Rate" },
+                { val: "II017", code: "II017", title: "Income from Profession — 8% IT Rate" },
+              ]}
+            />
+          </Q>
+          <Q item="Item 70" label="Spouse’s Name" help="Last Name, First Name, Middle Name.">
+            <Txt field="spouseName" up maxw={360} />
+          </Q>
+          <Q item="Item 71" label="Spouse’s Contact Number">
+            <Txt field="spouseContact" maxw={220} />
+          </Q>
+          <Q item="Item 72" label="Spouse’s Citizenship">
+            <Txt field="spouseCitizenship" up maxw={220} />
+          </Q>
+          <Q item="Item 73" label="Is your spouse claiming Foreign Tax Credits?">
+            <YesNo field="spouseForeignCredit" />
+          </Q>
+          {data.spouseForeignCredit === "yes" && (
+            <Q item="Item 74" label="Spouse’s Foreign Tax Number" req>
+              <Txt field="spouseForeignTaxNo" up maxw={260} />
+            </Q>
+          )}
+          <Q item="Item 75" label="Spouse’s Tax Rate">
+            <Cards
+              field="spouseTaxRate"
+              options={[
+                {
+                  val: "graduated",
+                  title: "Graduated rates with OSD",
+                  note: "Standard progressive tax with the 40% Optional Standard Deduction.",
+                },
+                {
+                  val: "eight",
+                  title: "8% flat income tax rate",
+                  note: "8% in lieu of graduated rates + percentage tax. Gross sales must not exceed ₱3,000,000.",
+                },
+              ]}
+            />
+          </Q>
+        </>
+      ),
+    });
+  }
+
   // STEP — Part IV: Income & computation
   steps.push({
     part: "Part IV",
@@ -228,10 +304,14 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
           <Q item="Item 48" label="Less: Sales Returns, Allowances and Discounts">
             {pair("i48")}
           </Q>
-          <Q item="Item 50–51" label="Other Non-Operating Income" help="Any other taxable income not from your main operations.">
-            <Txt field="i50label" ph="Specify (optional)" maxw={300} />
+          <Q item="Item 50–51" label="Other Non-Operating Income" help="Any other taxable income not from your main operations. You can list up to two sources.">
+            <Txt field="i50label" ph="Source 1 — specify (optional)" maxw={300} />
             <div style={{ height: 8 }} />
             {pair("i50")}
+            <div style={{ height: 12 }} />
+            <Txt field="i51label" ph="Source 2 — specify (optional)" maxw={300} />
+            <div style={{ height: 8 }} />
+            {pair("i51")}
           </Q>
           <div className="g-result hl">
             <div className="g-result-row"><span>Net sales (Item 49)</span><b>{P}{fmtAmt(comp.A.i49)}</b></div>
@@ -249,10 +329,14 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
           <Q item="Item 37" label="Less: Sales Returns, Allowances and Discounts">
             {pair("i37")}
           </Q>
-          <Q item="Item 41–42" label="Other Non-Operating Income" help="Other taxable income not from your main operations (optional).">
-            <Txt field="i41label" ph="Specify (optional)" maxw={300} />
+          <Q item="Item 41–42" label="Other Non-Operating Income" help="Other taxable income not from your main operations (optional). You can list up to two sources.">
+            <Txt field="i41label" ph="Source 1 — specify (optional)" maxw={300} />
             <div style={{ height: 8 }} />
             {pair("i41")}
+            <div style={{ height: 12 }} />
+            <Txt field="i42label" ph="Source 2 — specify (optional)" maxw={300} />
+            <div style={{ height: 8 }} />
+            {pair("i42")}
           </Q>
           <Q item="Item 43" label="Share in income from a General Professional Partnership (GPP)">
             {pair("i43")}
@@ -283,6 +367,7 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
         <Q item="Item 60" label="Creditable Tax Withheld per BIR Form 2307 (4th Quarter)" help="From the 2307 certificates issued to you for Q4.">{pair("i60")}</Q>
         <Q item="Item 61" label="Tax Paid in Previously Filed Return (if amended)">{pair("i61")}</Q>
         <Q item="Item 62" label="Foreign Tax Credits, if applicable">{pair("i62")}</Q>
+        <Q item="Item 63" label="Other Tax Credits / Payments (specify)" help="Any other creditable tax or payment not covered above.">{pair("i63")}</Q>
         <div className="g-result hl">
           <div className="g-result-row"><span>Total tax credits (Item 64)</span><b>{P}{fmtAmt(comp.A.i64)}</b></div>
           <div className="g-result-row big"><span>Net tax payable (Item 65)</span><b>{P}{fmtAmt(comp.A.i65)}</b></div>
@@ -353,6 +438,7 @@ export function Guided1701A({ tp, data, set, comp, onViewForm, onPrint }: Guided
             ["32", "Cash / Bank Debit Memo", "p32"],
             ["33", "Check", "p33"],
             ["34", "Tax Debit Memo", "p34"],
+            ["35", "Others", "p35"],
           ] as Array<[string, string, string]>
         ).map(([no, lbl, k]) => (
           <Q key={k} item={"Item " + no} label={lbl}>
