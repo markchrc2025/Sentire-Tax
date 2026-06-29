@@ -384,6 +384,17 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
       desc: "Add penalties only if filing late. Optionally defer part to a 2nd installment.",
       render: () => (
         <>
+          {data.incomeSpecial === "yes" && (
+            <div className="g-subsec">
+              <div className="g-subsec-h">Special / Preferential Rate (Part VI · from Part X)</div>
+              <F.Q label="Special-rate income tax due (Part VI Item 2)" help="Income tax computed under your special/preferential tax regime (Part X).">
+                <F.Money field="specialRateA" />
+              </F.Q>
+              <F.Q label="Less: Share of Other Government Agency, if remitted directly (Item 3)">
+                <F.Money field="shareGovtA" />
+              </F.Q>
+            </div>
+          )}
           <F.Q item="Item 25" label="Portion allowed for 2nd installment" help="Up to 50% of tax due may be deferred to October 15.">
             <F.Money field="installA" />
           </F.Q>
@@ -392,7 +403,9 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
           </F.Q>
           <F.Result
             rows={[
-              { label: "Tax due", value: A.taxDue },
+              { label: "Regular-rate tax due", value: A.taxDueRegular },
+              ...(data.incomeSpecial === "yes" ? [{ label: "Net special-rate tax due", value: A.netSpecial }] : []),
+              { label: "Total tax due", value: A.taxDue },
               { label: "Less credits", value: A.credits },
               { label: comp.aggregate < 0 ? "Overpayment" : "Amount payable", value: comp.aggregate, big: true },
             ]}

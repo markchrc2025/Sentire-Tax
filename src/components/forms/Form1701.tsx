@@ -703,7 +703,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="22" label="Total Other Non-Operating Income (Sum of 19 to 21)" base="toni_" roA roB valA={A.otherInc} valB={Bb.otherInc} />
           <CRow no="23" label="Taxable Income – Business (Sum of Items 18 and 22)" base="taxbiz_" roA roB valA={A.netBizTotal} valB={Bb.netBizTotal} strong />
           <CRow no="24" label="Total Taxable Income – Compensation & Business (Sum of 6 and 23)" base="taxtot_" roA roB valA={A.taxableTotal} valB={Bb.taxableTotal} strong />
-          <CRow no="25" label="Total Tax Due – Compensation and Business (graduated) (To Part VI Item 1)" base="tdgrad_" roA roB valA={A.rate !== "eight" ? A.taxDue : undefined} valB={Bb.rate !== "eight" ? Bb.taxDue : undefined} strong />
+          <CRow no="25" label="Total Tax Due – Compensation and Business (graduated) (To Part VI Item 1)" base="tdgrad_" roA roB valA={A.rate !== "eight" ? A.taxDueRegular : 0} valB={Bb.rate !== "eight" ? Bb.taxDueRegular : 0} strong />
         </div>
       </div>
 
@@ -722,7 +722,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="29" label="Less: Allowable reduction of P250,000 (purely self-employed; not if with compensation)" base="s8red_" roA roB valA={A.rate === "eight" ? A.gross8 - A.taxable8 : undefined} valB={undefined} />
           <CRow no="30" label="Taxable Income/(Loss) (Item 28 Less 29)" base="s8taxable_" roA roB valA={A.taxable8} valB={Bb.taxable8} strong />
           <CRow no="31" label="Tax Due – Business Income (Item 30 x 8%)" base="s8tax_" roA roB valA={A.tax8biz} valB={Bb.tax8biz} />
-          <CRow no="32" label="Total Tax Due – Compensation & Business (flat) (Sum of 7 and 31) (To Part VI Item 1)" base="s8total_" roA roB valA={A.rate === "eight" ? A.taxDue : undefined} valB={Bb.rate === "eight" ? Bb.taxDue : undefined} strong />
+          <CRow no="32" label="Total Tax Due – Compensation & Business (flat) (Sum of 7 and 31) (To Part VI Item 1)" base="s8total_" roA roB valA={A.rate === "eight" ? A.taxDueRegular : 0} valB={Bb.rate === "eight" ? Bb.taxDueRegular : 0} strong />
         </div>
 
         {/* Schedule 4 — Ordinary Allowable Itemized Deductions */}
@@ -812,10 +812,10 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         <PartBand>Part VI – Summary of Income Tax Due</PartBand>
         <ABHead label="Particulars" />
         <div className="b" style={{ borderTop: 0 }}>
-          <CRow no="1" label="Regular Rate – Income Tax Due (From Part V, Item 25 or 32)" base="vi1_" roA roB valA={A.taxDue} valB={Bb.taxDue} />
-          <CRow no="2" label="Special Rate – Income Tax Due (From Part X)" base="vi2" />
-          <CRow no="3" label="Less: Share of Other Government Agency (if remitted directly)" base="vi3" />
-          <CRow no="4" label="Net Special Rate – Income Tax Due/Share of National Govt. (Item 2 Less 3)" base="vi4_" />
+          <CRow no="1" label="Regular Rate – Income Tax Due (From Part V, Item 25 or 32)" base="vi1_" roA roB valA={A.taxDueRegular} valB={Bb.taxDueRegular} />
+          <CRow no="2" label="Special Rate – Income Tax Due (From Part X Item 17B/17F)" base="specialRate" />
+          <CRow no="3" label="Less: Share of Other Government Agency (if remitted directly)" base="shareGovt" />
+          <CRow no="4" label="Net Special Rate – Income Tax Due/Share of National Govt. (Item 2 Less 3)" base="vi4_" roA roB valA={A.netSpecial} valB={Bb.netSpecial} />
           <CRow no="5" label="Total Income Tax Due (Sum of Items 1 & 4) (To Part II Item 22)" base="vi5_" roA roB valA={A.taxDue} valB={Bb.taxDue} strong />
         </div>
 
@@ -841,14 +841,14 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         <div className="b" style={{ borderTop: 0 }}>
           <CRow no="1" label="Regular Income Tax Otherwise Due (Special)" base="viii1" />
           <CRow no="2" label="Tax Relief on Special Allowable Itemized Deductions" base="viii2" />
-          <CRow no="3" label="Sub-Total – Tax Relief (Sum of 1 and 2)" base="viii3_" />
+          <CRow no="3" label="Sub-Total – Tax Relief (Sum of 1 and 2)" base="viii3_" roA roB valA={num(data.viii1A) + num(data.viii2A)} valB={num(data.viii1B) + num(data.viii2B)} />
           <CRow no="4" label="Less: Income Tax Due (From Part X)" base="viii4" />
-          <CRow no="5" label="Tax Relief Availment Before Special Tax Credit (Item 3 Less 4)" base="viii5_" />
+          <CRow no="5" label="Tax Relief Availment Before Special Tax Credit (Item 3 Less 4)" base="viii5_" roA roB valA={num(data.viii1A) + num(data.viii2A) - num(data.viii4A)} valB={num(data.viii1B) + num(data.viii2B) - num(data.viii4B)} />
           <CRow no="6" label="Add: Special Tax Credit, if any (From Part VII Item 8)" base="viii6" />
-          <CRow no="7" label="Total Tax Relief Availment – SPECIAL (Sum of 5 and 6)" base="viii7_" strong />
+          <CRow no="7" label="Total Tax Relief Availment – SPECIAL (Sum of 5 and 6)" base="viii7_" roA roB valA={num(data.viii1A) + num(data.viii2A) - num(data.viii4A) + num(data.viii6A)} valB={num(data.viii1B) + num(data.viii2B) - num(data.viii4B) + num(data.viii6B)} strong />
           <CRow no="8" label="Regular Income Tax Otherwise Due (Exempt)" base="viii8" />
           <CRow no="9" label="Tax Relief on Special Allowable Itemized Deductions (Exempt)" base="viii9" />
-          <CRow no="10" label="Total Tax Relief Availment – EXEMPT (Sum of 8 and 9)" base="viii10_" strong />
+          <CRow no="10" label="Total Tax Relief Availment – EXEMPT (Sum of 8 and 9)" base="viii10_" roA roB valA={num(data.viii8A) + num(data.viii9A)} valB={num(data.viii8B) + num(data.viii9B)} strong />
         </div>
 
         {/* Part IX — Reconciliation of Net Income per Books */}

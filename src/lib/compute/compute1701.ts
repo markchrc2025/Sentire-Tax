@@ -36,6 +36,15 @@ export interface Side1701 {
   taxable8: number;
   tax8biz: number;
   taxableTotal: number;
+  /** Part VI Item 1 — regular-rate income tax (graduated or 8%). */
+  taxDueRegular: number;
+  /** Part VI Item 2 — special/preferential-rate income tax (from Part X). */
+  specialRate: number;
+  /** Part VI Item 3 — share of other gov't agency remitted directly. */
+  shareOtherGovt: number;
+  /** Part VI Item 4 — net special-rate tax due (Item 2 less Item 3). */
+  netSpecial: number;
+  /** Part VI Item 5 — total income tax due (regular + net special). */
   taxDue: number;
   prevPaid: number;
   cwt: number;
@@ -101,10 +110,19 @@ export function compute1701(d: FilingData): Comp1701 {
     o.tax8biz = roundPeso(o.taxable8 * 0.08);
     o.taxableTotal = o.rate === "eight" ? o.comp + o.taxable8 : o.comp + o.netBizTotal;
     // tax due: 8% on biz + graduated on comp ; graduated on combined otherwise
-    o.taxDue =
+    // Part VI Item 1 — regular-rate tax: 8% on business + graduated on
+    // compensation; or graduated on combined taxable income.
+    o.taxDueRegular =
       o.rate === "eight"
         ? roundPeso(grad(o.comp, year)) + o.tax8biz
         : roundPeso(grad(o.comp + o.netBizTotal, year));
+    // Part VI Items 2-4 — special/preferential-rate tax (entered from Part X)
+    // less any share of another gov't agency remitted directly.
+    o.specialRate = num(d["specialRate" + s]);
+    o.shareOtherGovt = num(d["shareGovt" + s]);
+    o.netSpecial = o.specialRate - o.shareOtherGovt;
+    // Part VI Item 5 — total income tax due (regular + net special) -> Part II.
+    o.taxDue = o.taxDueRegular + o.netSpecial;
     o.prevPaid = num(d["prevPaid" + s]);
     o.cwt = num(d["cwt" + s]);
     o.excess = num(d["excess" + s]);
