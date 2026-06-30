@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { displayName, formatTin, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
-import type { Taxpayer, TaxpayerKind } from "../../types";
+import type { Taxpayer, TaxpayerKind, TaxType } from "../../types";
 import { Icon, SIco } from "../icons";
 
 type TaxpayerDraft = Partial<Taxpayer> & { kind: TaxpayerKind };
@@ -119,9 +119,11 @@ function TaxpayerEditor({
           lastName: "",
           firstName: "",
           middleName: "",
+          tradeName: "",
           tin: "",
           branch: "00000",
           rdo: "",
+          taxTypes: [],
           address: "",
           city: "",
           zip: "",
@@ -136,6 +138,7 @@ function TaxpayerEditor({
         },
   );
   const upd = (k: keyof TaxpayerDraft, v: string) => setF((o) => ({ ...o, [k]: v }));
+  const setTaxTypes = (rows: TaxType[]) => setF((o) => ({ ...o, taxTypes: rows }));
 
   // BIR Certificate of Registration (COR) attachment — cloud mode only.
   const [corFile, setCorFile] = useState<File | null>(null);
@@ -175,6 +178,8 @@ function TaxpayerEditor({
       lastName: up(f.lastName),
       firstName: up(f.firstName),
       middleName: up(f.middleName),
+      tradeName: up(f.tradeName),
+      taxTypes: (f.taxTypes || []).filter((t) => t.type || t.form || t.frequency || t.startDate),
       address: up(f.address),
       city: up(f.city),
       citizenship: up(f.citizenship),
@@ -245,6 +250,14 @@ function TaxpayerEditor({
             <Field lbl="Registered Name" v={f.regName} on={(v) => upd("regName", v)} up />
           )}
 
+          <Field
+            lbl="Trade Name / Business Name"
+            v={f.tradeName}
+            on={(v) => upd("tradeName", v)}
+            placeholder="As shown on the BIR COR (optional)"
+            up
+          />
+
           <div className="s-grid3">
             <Field
               lbl="TIN"
@@ -298,6 +311,8 @@ function TaxpayerEditor({
               <Field lbl="Date of Incorporation" v={f.incorpDate} on={(v) => upd("incorpDate", v)} type="date" />
             </div>
           )}
+
+          <TaxTypesEditor value={f.taxTypes || []} onChange={setTaxTypes} />
 
           {repo.supportsFiles && (
             <div className="s-cor">
@@ -357,6 +372,108 @@ function TaxpayerEditor({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Suggestions for the COR "Tax Types" table — free text is still allowed.
+const TAX_TYPE_SUGGESTIONS = [
+  "Income Tax",
+  "Value-Added Tax",
+  "Percentage Tax",
+  "Registration Fee",
+  "Withholding Tax - Compensation",
+  "Withholding Tax - Expanded",
+  "Withholding Tax - Final",
+  "Documentary Stamp Tax",
+];
+const FORM_SUGGESTIONS = [
+  "1701",
+  "1701A",
+  "1701Q",
+  "1702RT",
+  "1702Q",
+  "2550M",
+  "2550Q",
+  "2551Q",
+  "0605",
+  "1601C",
+  "0619E",
+  "1601EQ",
+];
+const FREQUENCY_OPTS = ["", "Annually", "Quarterly", "Monthly", "One-time"];
+
+/**
+ * Editor for a taxpayer's COR "Tax Types" table — a repeating list of
+ * {type, form, frequency, startDate} rows. Defined at module scope and rendered
+ * with `.map()` over stable element types so typing never loses focus.
+ */
+function TaxTypesEditor({ value, onChange }: { value: TaxType[]; onChange: (rows: TaxType[]) => void }) {
+  const rows = value;
+  const updRow = (i: number, key: keyof TaxType, val: string) =>
+    onChange(rows.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
+  const addRow = () => onChange([...rows, { type: "", form: "", frequency: "", startDate: "" }]);
+  const removeRow = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="s-tt">
+      <span className="s-cor-label">Tax Types (from the BIR COR)</span>
+      {rows.length > 0 && (
+        <div className="s-tt-row s-tt-head">
+          <span>Tax Type</span>
+          <span>Form</span>
+          <span>Filing Frequency</span>
+          <span>Start Date</span>
+          <span />
+        </div>
+      )}
+      {rows.map((r, i) => (
+        <div className="s-tt-row" key={i}>
+          <input
+            list="tt-type-list"
+            value={r.type || ""}
+            placeholder="e.g. Income Tax"
+            onChange={(e) => updRow(i, "type", e.target.value)}
+          />
+          <input
+            list="tt-form-list"
+            value={r.form || ""}
+            placeholder="e.g. 1701"
+            onChange={(e) => updRow(i, "form", e.target.value)}
+          />
+          <select value={r.frequency || ""} onChange={(e) => updRow(i, "frequency", e.target.value)}>
+            {FREQUENCY_OPTS.map((o) => (
+              <option key={o} value={o}>
+                {o || "—"}
+              </option>
+            ))}
+          </select>
+          <input type="date" value={r.startDate || ""} onChange={(e) => updRow(i, "startDate", e.target.value)} />
+          <button
+            type="button"
+            className="s-iconbtn s-tt-del"
+            title="Remove this tax type"
+            onClick={() => removeRow(i)}
+          >
+            <Icon d={SIco.x} size={15} />
+          </button>
+        </div>
+      ))}
+      <datalist id="tt-type-list">
+        {TAX_TYPE_SUGGESTIONS.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+      <datalist id="tt-form-list">
+        {FORM_SUGGESTIONS.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+      <button type="button" className="s-btn s-tt-add" onClick={addRow}>
+        <Icon d={SIco.plus} size={14} />
+        Add tax type
+      </button>
+      {rows.length === 0 && <span className="s-cor-hint">Add the tax types listed on the taxpayer&rsquo;s COR.</span>}
     </div>
   );
 }

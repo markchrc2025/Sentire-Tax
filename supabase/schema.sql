@@ -20,9 +20,11 @@ create table if not exists public.taxpayers (
   last_name     text not null default '',
   first_name    text not null default '',
   middle_name   text not null default '',
+  trade_name    text not null default '',              -- COR "Trade Name"
   tin           text not null default '',              -- plain 9 digits
   branch        text not null default '00000',         -- 5-digit branch code
   rdo           text not null default '',
+  tax_types     jsonb not null default '[]'::jsonb,    -- COR "Tax Types" table
   address       text not null default '',
   city          text not null default '',
   zip           text not null default '',
@@ -60,6 +62,11 @@ create table if not exists public.filing_exports (
   xml        text not null default '',
   created_at timestamptz not null default now()
 );
+
+-- Add columns introduced after first release (create table if not exists above
+-- won't touch an existing table, so migrate it explicitly here).
+alter table public.taxpayers add column if not exists trade_name text not null default '';
+alter table public.taxpayers add column if not exists tax_types jsonb not null default '[]'::jsonb;
 
 create index if not exists taxpayers_owner_idx       on public.taxpayers(owner_id);
 create index if not exists filings_owner_idx         on public.filings(owner_id);

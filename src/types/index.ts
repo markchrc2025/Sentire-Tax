@@ -18,6 +18,22 @@ export type TaxpayerKind = "individual" | "non-individual";
 
 export type FormCategory = "Income Tax" | "Business Tax" | "Withholding";
 
+/**
+ * A single registered tax type line from the BIR Certificate of Registration
+ * (BIR Form 2303) — the "Tax Types" table. Each row pairs a tax type with the
+ * return it's filed on, its filing frequency and the registration start date.
+ */
+export interface TaxType {
+  /** Tax type, e.g. "Income Tax", "Value-Added Tax", "Registration Fee". */
+  type: string;
+  /** Form/return type filed for it, e.g. "1701", "2550Q", "0605". */
+  form: string;
+  /** Filing frequency, e.g. "Annually", "Quarterly", "Monthly". */
+  frequency: string;
+  /** Filing start date, ISO yyyy-mm-dd (optional). */
+  startDate?: string;
+}
+
 /** A registered filer — an individual or a company. */
 export interface Taxpayer {
   id: string;
@@ -26,9 +42,13 @@ export interface Taxpayer {
   lastName: string;
   firstName: string;
   middleName: string;
+  /** Registered trade/business name from the COR ("Trade Name"), if any. */
+  tradeName?: string;
   tin: string;
   branch: string;
   rdo: string;
+  /** Tax types the filer is registered for, from the COR "Tax Types" table. */
+  taxTypes?: TaxType[];
   address: string;
   city: string;
   zip: string;

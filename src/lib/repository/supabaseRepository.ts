@@ -9,7 +9,7 @@
 // Write failures are surfaced via setErrorListener so they aren't silent.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Filing, FilingData, FormCode, Taxpayer, XmlExport } from "../../types";
+import type { Filing, FilingData, FormCode, Taxpayer, TaxType, XmlExport } from "../../types";
 import type { FilingRepository, Repository, TaxpayerRepository } from "./types";
 import { COR_BUCKET } from "../supabase/client";
 
@@ -27,6 +27,15 @@ const toMs = (ts: unknown): number => {
 };
 const s = (v: unknown): string => (v == null ? "" : String(v));
 
+/** Coerce a jsonb tax_types value into a clean TaxType[] (defensive against nulls). */
+function toTaxTypes(v: unknown): TaxType[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((row) => {
+    const o = (row ?? {}) as Record<string, unknown>;
+    return { type: s(o.type), form: s(o.form), frequency: s(o.frequency), startDate: s(o.startDate) };
+  });
+}
+
 function rowToTaxpayer(r: Row): Taxpayer {
   return {
     id: s(r.id),
@@ -35,6 +44,8 @@ function rowToTaxpayer(r: Row): Taxpayer {
     lastName: s(r.last_name),
     firstName: s(r.first_name),
     middleName: s(r.middle_name),
+    tradeName: s(r.trade_name),
+    taxTypes: toTaxTypes(r.tax_types),
     tin: s(r.tin),
     branch: s(r.branch),
     rdo: s(r.rdo),
@@ -66,6 +77,8 @@ function taxpayerToRow(tp: Taxpayer): Row {
     last_name: tp.lastName ?? "",
     first_name: tp.firstName ?? "",
     middle_name: tp.middleName ?? "",
+    trade_name: tp.tradeName ?? "",
+    tax_types: tp.taxTypes ?? [],
     tin: tp.tin ?? "",
     branch: tp.branch ?? "00000",
     rdo: tp.rdo ?? "",
@@ -139,6 +152,46 @@ export class SupabaseRepository implements Repository {
     this.errorCb?.("Couldn't sync your latest change to the cloud — check your connection. It may not be saved.");
   }
 
+  /** Columns added after first release; absent until the DB runs the latest schema.sql. */
+  private static readonly TAXPAYER_NEW_COLUMNS = ["trade_name", "tax_types"];
+
+  /** PostgREST/Postgres signals for "column not in the table/schema cache". */
+  private isMissingColumnError(error: unknown): boolean {
+    const e = error as { code?: string; message?: string };
+    const code = e?.code ?? "";
+    const msg = e?.message ?? "";
+    if (code === "PGRST204" || code === "42703") return true;
+    return SupabaseRepository.TAXPAYER_NEW_COLUMNS.some((c) => msg.includes(c));
+  }
+
+  /**
+   * Upsert a taxpayer, tolerating a DB that hasn't been migrated for the
+   * trade_name/tax_types columns yet: on a missing-column error, retry without
+   * them so the core record still saves, and prompt the user to run schema.sql.
+   */
+  private async upsertTaxpayer(tp: Taxpayer): Promise<void> {
+    const row = taxpayerToRow(tp);
+    const { error } = await this.sb.from("taxpayers").upsert(row);
+    if (!error) return;
+    if (!this.isMissingColumnError(error)) {
+      this.report("save taxpayer", error);
+      return;
+    }
+    const legacy: Row = {};
+    for (const k of Object.keys(row)) {
+      if (!SupabaseRepository.TAXPAYER_NEW_COLUMNS.includes(k)) legacy[k] = row[k];
+    }
+    const { error: retryError } = await this.sb.from("taxpayers").upsert(legacy);
+    if (retryError) {
+      this.report("save taxpayer", retryError);
+    } else {
+      this.errorCb?.(
+        "Saved — but ‘Trade Name’ and ‘Tax Types’ need a one-time database update before they persist. " +
+          "Run the latest supabase/schema.sql in your Supabase SQL Editor.",
+      );
+    }
+  }
+
   async hydrate(): Promise<void> {
     const [tpRes, flRes, exRes] = await Promise.all([
       this.sb.from("taxpayers").select("*"),
@@ -196,10 +249,7 @@ export class SupabaseRepository implements Repository {
       if (!tp.createdAt) tp.createdAt = Date.now();
       tp.updatedAt = Date.now();
       this.taxpayersMap[tp.id] = tp;
-      this.sb
-        .from("taxpayers")
-        .upsert(taxpayerToRow(tp))
-        .then(({ error }) => this.report("save taxpayer", error));
+      void this.upsertTaxpayer(tp);
       return tp;
     },
     remove: (id) => {
