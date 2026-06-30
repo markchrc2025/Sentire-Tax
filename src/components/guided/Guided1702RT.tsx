@@ -1,5 +1,7 @@
 // Guided1702RT.tsx — guided wizard for 1702-RT (Annual Corporate ITR, Regular Rate).
-// Ported from Guided1702RT in bir-guided-corp.jsx (uses the shared guided kit).
+// Collects every user-entered field: background (ATC, treaty, attachments,
+// signatory titles/TINs), income & deductions, the credit items (incl. Excess
+// MCIT and NOLCO), and penalties — feeding the shared compute1702RT engine.
 
 import type { Comp1702RT } from "../../lib/compute";
 import type { GuidedProps } from "../formProps";
@@ -31,6 +33,20 @@ export function Guided1702RT({ tp, data, set, comp, onViewForm, onPrint }: Guide
           <F.Q item="Item 3" label="Is this an Amended Return?">
             <F.YesNo field="amended" />
           </F.Q>
+          <F.Q item="Item 4" label="Is this a Short Period Return?">
+            <F.YesNo field="shortPeriod" />
+          </F.Q>
+          <F.Q item="Item 5" label="Alphanumeric Tax Code (ATC)" help="e.g. IC 055 — Minimum Corporate Income Tax (MCIT).">
+            <F.Txt field="atc" ph="IC 055" maxw={160} />
+          </F.Q>
+          <F.Q label="Are you availing of tax relief under Special Law / International Tax Treaty?">
+            <F.YesNo field="treaty" />
+          </F.Q>
+          {data.treaty === "yes" && (
+            <F.Q label="If yes, specify">
+              <F.Txt field="treatySpecify" />
+            </F.Q>
+          )}
           <F.Q item="Item 13" label="Method of Deductions" req>
             <F.Cards
               field="method"
@@ -69,13 +85,13 @@ export function Guided1702RT({ tp, data, set, comp, onViewForm, onPrint }: Guide
             </F.Q>
           ) : (
             <>
-              <F.Q label="Ordinary Allowable Itemized Deductions">
+              <F.Q label="Ordinary Allowable Itemized Deductions" help="Schedule I Item 18 total (or enter the schedule detail in the official form).">
                 <F.Money field="i34" />
               </F.Q>
-              <F.Q label="Special Allowable Itemized Deductions">
+              <F.Q label="Special Allowable Itemized Deductions" help="Schedule II Item 5 total.">
                 <F.Money field="i35" />
               </F.Q>
-              <F.Q label="NOLCO (Net Operating Loss Carry-Over)">
+              <F.Q label="NOLCO (Net Operating Loss Carry-Over)" help="Schedule III Item 8 total.">
                 <F.Money field="i36" />
               </F.Q>
             </>
@@ -128,14 +144,29 @@ export function Guided1702RT({ tp, data, set, comp, onViewForm, onPrint }: Guide
           <F.Q label="Prior Year’s Excess Credits other than MCIT">
             <F.Money field="i44" />
           </F.Q>
+          <F.Q label="Income Tax Payment under MCIT from Previous Quarters">
+            <F.Money field="i45" />
+          </F.Q>
           <F.Q label="Income Tax Payments from Previous Quarters (Regular)">
             <F.Money field="i46" />
+          </F.Q>
+          <F.Q label="Excess MCIT Applied this Current Taxable Year" help="Schedule IV Item 4 total (or enter the schedule detail in the official form).">
+            <F.Money field="i47" />
           </F.Q>
           <F.Q label="Creditable Tax Withheld from Previous Quarters (2307)">
             <F.Money field="i48" />
           </F.Q>
           <F.Q label="Creditable Tax Withheld for the 4th Quarter (2307)">
             <F.Money field="i49" />
+          </F.Q>
+          <F.Q label="Foreign Tax Credits, if applicable">
+            <F.Money field="i50" />
+          </F.Q>
+          <F.Q label="Tax Paid in Return Previously Filed, if Amended">
+            <F.Money field="i51" />
+          </F.Q>
+          <F.Q label="Special Tax Credits">
+            <F.Money field="i52" />
           </F.Q>
           <F.Result
             rows={[
@@ -169,6 +200,34 @@ export function Guided1702RT({ tp, data, set, comp, onViewForm, onPrint }: Guide
               { label: comp.i21 < 0 ? "Overpayment" : "Total amount payable", value: comp.i21, big: true },
             ]}
           />
+        </>
+      ),
+    },
+    {
+      part: "Sign",
+      tab: "Signatories",
+      title: "Signatories & attachments",
+      desc: "The annual corporate return is signed by two officers. Indicate each signatory's title and TIN.",
+      render: () => (
+        <>
+          <F.Q item="Item 22" label="Number of Attachments">
+            <F.Txt field="attachments" ph="0" maxw={120} />
+          </F.Q>
+          <F.Q label="President / Principal Officer — Title of Signatory">
+            <F.Txt field="presTitle" ph="PRESIDENT" />
+          </F.Q>
+          <F.Q label="President / Principal Officer — TIN">
+            <F.Txt field="presTin" />
+          </F.Q>
+          <F.Q label="Treasurer / Assistant Treasurer — Name">
+            <F.Txt field="treasurer" />
+          </F.Q>
+          <F.Q label="Treasurer / Assistant Treasurer — Title of Signatory">
+            <F.Txt field="treasTitle" ph="TREASURER" />
+          </F.Q>
+          <F.Q label="Treasurer / Assistant Treasurer — TIN">
+            <F.Txt field="treasTin" />
+          </F.Q>
         </>
       ),
     },
