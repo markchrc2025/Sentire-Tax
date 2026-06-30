@@ -7,12 +7,25 @@
 // "All Rights Reserved BIR 2012.0" tail match the offline-package output (verified
 // against a real eBIRForms 2550Q export). build2550Q() is pure.
 
-import type { Filing, Taxpayer } from "../../types";
+import type { Filing, FilingRow, Taxpayer } from "../../types";
 import type { Comp2550Q } from "../compute";
 import { amt, enc, rb, tinParts, type XmlRow } from "./xmlkit";
 import { parsePeriod } from "../period";
 
 const NS = "frm2550qv2024:";
+
+/** Read the stored rows for a Part V schedule (empty array if none). */
+function schedRows(d: { [k: string]: unknown }, key: string): FilingRow[] {
+  const v = d[key];
+  return Array.isArray(v) ? (v as FilingRow[]) : [];
+}
+
+/** A single cell value of a schedule row, as a raw string ("" if missing). */
+function cell(rows: FilingRow[], i: number, c: number): string {
+  const r = rows[i];
+  const v = r ? r["c" + c] : undefined;
+  return v == null ? "" : String(v);
+}
 
 /** Page-1/registered taxpayer name (raw, un-encoded). */
 function fullName(tp: Taxpayer | null): string {
@@ -177,50 +190,63 @@ export function build2550Q(filing: Filing, tp: Taxpayer | null, comp: Comp2550Q)
   P("netVatPayable", amt(comp.i61));
 
   // ---- Part V – Schedule 1: Amortized Input Tax on Capital Goods (GLOBAL) ----
-  // Two display rows ("10" and "11"); blank text, 0.00 amounts when unused.
-  for (const n of ["10", "11"]) {
-    G(`txtDatePurchase${n}`, "");
-    G(`txtSourceCode${n}`, "");
-    G(`txtDescription${n}`, "");
-    G(`txtAmountPurchase${n}`, amt(0));
-    G(`txtInputTax${n}`, amt(0));
-    G(`txtEstimatedLife${n}`, amt(0));
-    G(`txtRecognizedLife${n}`, amt(0));
-    G(`txtAllowedInputTax${n}`, amt(0));
-    G(`txtBalanceInputTax${n}`, amt(0));
-  }
-  G("sched1TotalBalPrev", amt(0));
-  G("sched1TotalBalNext", amt(0));
+  // Two display rows ("10" and "11") mirror the official grid. Cells map:
+  //   c0 Date / c1 Source / c2 Description / c3 Amount>P1M (D) /
+  //   c4 Balance prev (E) / c5 Est life (F) / c6 Recognized life (G) /
+  //   c7 Allowable input tax (H) / c8 Balance to next period (I).
+  const sch1 = schedRows(d, "sch1");
+  ["10", "11"].forEach((n, i) => {
+    G(`txtDatePurchase${n}`, cell(sch1, i, 0));
+    G(`txtSourceCode${n}`, cell(sch1, i, 1));
+    G(`txtDescription${n}`, enc(cell(sch1, i, 2)));
+    G(`txtAmountPurchase${n}`, amt(cell(sch1, i, 3)));
+    G(`txtInputTax${n}`, amt(cell(sch1, i, 4))); // Col E balance prev
+    G(`txtEstimatedLife${n}`, amt(cell(sch1, i, 5)));
+    G(`txtRecognizedLife${n}`, amt(cell(sch1, i, 6)));
+    G(`txtAllowedInputTax${n}`, amt(cell(sch1, i, 7))); // Col H
+    G(`txtBalanceInputTax${n}`, amt(cell(sch1, i, 8))); // Col I
+  });
+  G("sched1TotalBalPrev", amt(comp.sch1TotalE)); // Col E total -> Item 39B
+  G("sched1TotalBalNext", amt(comp.sch1TotalI)); // Col I total -> Item 52B
 
   // ---- Part V – Schedule 2: Input Tax on VAT Exempt Sales (namespaced) ----
-  P("sched2InputTaxDirect", amt(0));
+  // The form captures the directly-attributable input tax and the computed
+  // ratable portion; the intermediate ratio fields (exempt sale / total sales /
+  // amount of input tax not directly attributable) are not modelled -> 0.00.
+  P("sched2InputTaxDirect", amt(comp.sch2Direct));
   P("sched2VatExemptSale", amt(0));
   P("sched2AmountInputTax", amt(0));
   P("sched2TotalSales", amt(0));
-  P("sched2TotalRatable", amt(0));
-  P("sched2TotalAttr", amt(0));
+  P("sched2TotalRatable", amt(comp.sch2Ratable));
+  P("sched2TotalAttr", amt(comp.sch2Total)); // -> Part IV, Item 53
 
   // ---- Part V – Schedule 3: Creditable VAT Withheld (GLOBAL) ----
-  for (const n of ["30", "31"]) {
-    G(`txtDateCovered${n}`, "");
+  // Cells: c0 Period Covered (A) / c1 Withholding Agent (B) /
+  //        c2 Income Payment (C) / c3 Total Tax Withheld (D).
+  const sch3 = schedRows(d, "sch3");
+  ["30", "31"].forEach((n, i) => {
+    G(`txtDateCovered${n}`, cell(sch3, i, 0));
     G(`txtDateCovered3To${n.slice(-1)}`, "");
-    G(`txtNameWithHoldingAgent${n}`, "");
-    G(`txtIncomePayment${n}`, amt(0));
-    G(`txtTotalTaxWithHeld${n}`, amt(0));
-  }
-  G("sched3TotalIncome", amt(0));
-  G("sched3TotalTax", amt(0));
+    G(`txtNameWithHoldingAgent${n}`, enc(cell(sch3, i, 1)));
+    G(`txtIncomePayment${n}`, amt(cell(sch3, i, 2)));
+    G(`txtTotalTaxWithHeld${n}`, amt(cell(sch3, i, 3)));
+  });
+  G("sched3TotalIncome", amt(comp.sch3TotalC));
+  G("sched3TotalTax", amt(comp.sch3TotalD)); // Col D total -> Item 16
 
   // ---- Part V – Schedule 4: Advance VAT Payment / Miller (GLOBAL) ----
-  for (const n of ["40", "41"]) {
-    G(`txtDate${n}`, "");
+  // Cells: c0 Period Covered (A) / c1 Name of Miller (B) /
+  //        c2 Name of Taxpayer (C) / c3 OR Number (D) / c4 Amount Paid (E).
+  const sch4 = schedRows(d, "sch4");
+  ["40", "41"].forEach((n, i) => {
+    G(`txtDate${n}`, cell(sch4, i, 0));
     G(`txtDate4To${n.slice(-1)}`, "");
-    G(`txtNameOfMiller${n}`, "");
-    G(`txtNameOfTaxpayer${n}`, "");
-    G(`txtOfficialReceiptNumber${n}`, amt(0));
-    G(`txtAmountPaid${n}`, amt(0));
-  }
-  G("sched4AmountPaid", amt(0));
+    G(`txtNameOfMiller${n}`, enc(cell(sch4, i, 1)));
+    G(`txtNameOfTaxpayer${n}`, enc(cell(sch4, i, 2)));
+    G(`txtOfficialReceiptNumber${n}`, cell(sch4, i, 3) ? enc(cell(sch4, i, 3)) : amt(0));
+    G(`txtAmountPaid${n}`, amt(cell(sch4, i, 4)));
+  });
+  G("sched4AmountPaid", amt(comp.sch4Total)); // Col E total -> Item 17
 
   // ---- meta / package fields ----
   P("txtCurrentPage", "1");
@@ -231,11 +257,11 @@ export function build2550Q(filing: Filing, tp: Taxpayer | null, comp: Comp2550Q)
   G("resultOtherCreditsNo42", amt(comp.i42));
   G("resultOtherCreditsNo47", amt(comp.i47b));
   G("resultOtherCreditsNo56", amt(comp.i56));
-  G("txtTotalAmountOfBalanceofInputTaxFromPrevious", amt(0));
-  G("txtTotalAmountOfBalanceofInputTaxToBeCarried", amt(0));
-  G("txtTotalAmountofIncomePayment", amt(0));
-  G("txtTotalAmoungOfTaxWithHeld", amt(0));
-  G("txtAmountPaidSched4", amt(0));
+  G("txtTotalAmountOfBalanceofInputTaxFromPrevious", amt(comp.sch1TotalE)); // Sched 1 Col E
+  G("txtTotalAmountOfBalanceofInputTaxToBeCarried", amt(comp.sch1TotalI)); // Sched 1 Col I
+  G("txtTotalAmountofIncomePayment", amt(comp.sch3TotalC)); // Sched 3 Col C
+  G("txtTotalAmoungOfTaxWithHeld", amt(comp.sch3TotalD)); // Sched 3 Col D
+  G("txtAmountPaidSched4", amt(comp.sch4Total)); // Sched 4 Col E
 
   // ---- global tail fields ----
   G("txtFinalFlag", filing.status === "filed" ? "1" : "0");

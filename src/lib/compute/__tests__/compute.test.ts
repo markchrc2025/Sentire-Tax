@@ -199,9 +199,9 @@ describe("compute2307 — creditable tax withheld", () => {
 describe("compute2316 — compensation certificate", () => {
   it("graduated tax on gross taxable compensation", () => {
     const c = compute2316({ year: "2024", i39: "500000", i29: "90000" });
-    expect(c.i38).toBe(90000); // non-taxable
-    expect(c.i26).toBe(500000); // total taxable comp
-    expect(c.i23).toBe(500000); // gross taxable comp
+    expect(c.i38).toBe(90000); // non-taxable (item 38)
+    expect(c.i52).toBe(500000); // total taxable comp, present (item 52)
+    expect(c.i23).toBe(500000); // gross taxable comp (item 23)
     expect(c.i24).toBe(42500); // grad(500k, 2024)
   });
 });

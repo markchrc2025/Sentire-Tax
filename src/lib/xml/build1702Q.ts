@@ -76,8 +76,8 @@ export function build1702Q(filing: Filing, tp: Taxpayer | null, comp: Comp1702Q)
   P("optRemenderRtn_1", rb(d.amended === "yes"));
   P("optRemenderRtn_2", rb(d.amended !== "yes"));
 
-  // ---- Sheets / year-end ----
-  P("txtSheets", String(d.sheets || "0"));
+  // ---- Sheets (Item 26 Number of Attachments) / year-end ----
+  P("txtSheets", String(d.attachments || d.sheets || "0"));
   P("itemYearEndMonth", "12");
   P("txtYearEnded", yr.yyyy);
 
@@ -99,79 +99,92 @@ export function build1702Q(filing: Filing, tp: Taxpayer | null, comp: Comp1702Q)
   M("OptMethodDeduct_1", rb(itemized));
   M("OptMethodDeduct_2", rb(!itemized));
 
-  // ---- Tax treaty (literal colon; default: no treaty → _2=true) ----
+  // ---- Tax treaty (Item 13/13A; literal colon; default: no treaty → _2=true) ----
   P("optTreaty:_1", rb(d.treaty === "yes"));
   P("optTreaty:_2", rb(d.treaty !== "yes"));
   P("lstTaxTreaty", "0");
+  P("txtTaxTreaty", enc((d.treatySpecify as string) || ""));
 
-  // ---- ATC (trailing space is authentic — keep it) ----
-  P("txtAtc", (d.atc as string) || "IC010 ");
+  // ---- ATC (trailing space is authentic — keep it; default IC010 when blank) ----
+  P("txtAtc", (d.atc as string) ? String(d.atc) : "IC010 ");
 
-  // ---- Schedule / Part II amount fields (txt16A..txt34) ----
-  // The app captures only the regular-rate Schedule 2 + Part II totals; map the
-  // identifiable ones, emit "0.00" for the rest. Column B at item 25 carries the
-  // 2% MCIT rate context in the sample (30.00 there from a 30% regular rate); we
-  // emit "0.00" unless computed, matching the conservative RT behaviour.
-  A("txt16A", 0); // sales/receipts (special-rate columns A/B/C)
-  A("txt16B", 0);
+  // ---- Signatories: title + TIN for President/Principal Officer & Treasurer ----
+  P("txtPresidentTitle", enc((d.presTitle as string) || ""));
+  P("txtPresidentTIN", String(d.presTin || "").replace(/\D/g, ""));
+  P("txtTreasurerTitle", enc((d.treasTitle as string) || ""));
+  P("txtTreasurerTIN", String(d.treasTin || "").replace(/\D/g, ""));
+
+  // ---- Part IV Schedule 1 (special/exempt) amount fields (txt16A..txt24B) ----
+  // The authentic positional block carries Schedule 1's per-item, per-column
+  // figures: column A = EXEMPT, column B = SPECIAL (the third "C" sub-cells the
+  // sample reserves stay 0). Items follow the official Schedule 1 order:
+  //   16 Sales · 17 Cost of Sales · 18 Gross Income from Operation ·
+  //   19 Non-Operating/Other Income · 20 Total Gross Income · 21 Deductions ·
+  //   22 Taxable Income this Quarter · 23 Total Taxable Income to Date ·
+  //   24 Net Income Tax Due to National Government (Sch 1 Item 13 → Part II 17).
+  A("txt16A", comp.sch1_1A); // Sales/Receipts
+  A("txt16B", comp.sch1_1B);
   A("txt16C", 0);
-  A("txt17A", 0);
-  A("txt17B", 0);
+  A("txt17A", comp.sch1_2A); // Less: Cost of Sales/Services
+  A("txt17B", comp.sch1_2B);
   A("txt17C", 0);
-  A("txt18A", 0);
-  A("txt18B", 0);
+  A("txt18A", comp.sch1_3A); // Gross Income from Operation
+  A("txt18B", comp.sch1_3B);
   A("txt18C", 0);
-  A("txt19A", 0);
-  A("txt19B", 0);
-  A("txt20A", 0);
-  A("txt20B", 0);
+  A("txt19A", comp.sch1_4A); // Add: Non-Operating / Other Taxable Income
+  A("txt19B", comp.sch1_4B);
+  A("txt20A", comp.sch1_5A); // Total Gross Income
+  A("txt20B", comp.sch1_5B);
   A("txt20C", 0);
-  A("txt21A", 0);
-  A("txt21B", 0);
+  A("txt21A", comp.sch1_6A); // Less: Deductions
+  A("txt21B", comp.sch1_6B);
   A("txt21C", 0);
-  A("txt22A", 0);
-  A("txt22B", 0);
-  A("txt23A", 0);
-  A("txt23B", 0);
-  A("txt24A", 0);
-  A("txt24B", 0);
-  A("txt25A", 0);
-  // txt25B holds the regular income-tax-rate cell (authentic sample shows the
-  // 30% filer's rate as "30.00"); derive it from the computed regular rate.
+  A("txt22A", comp.sch1_7A); // Taxable Income this Quarter
+  A("txt22B", comp.sch1_7B);
+  A("txt23A", comp.sch1_9A); // Total Taxable Income to Date
+  A("txt23B", comp.sch1_9B);
+  A("txt24A", comp.sch1_13A); // Net Income Tax Due (exempt: 0)
+  A("txt24B", comp.sch1_13B); // Net Income Tax Due (special) → Part II Item 17
+  // txt25A carries the special-rate context; txt25B holds the regular
+  // income-tax-rate cell (the authentic sample shows a 30% filer's rate as
+  // "30.00" — keep this verified mapping rather than guessing).
+  A("txt25A", comp.sch1Rate);
   A("txt25B", comp.rate);
-  A("txt26A", 0);
-  A("txt26B", 0);
-  A("txt27", 0);
-  A("txt28", 0);
-  A("txt29A", 0);
-  A("txt29B", 0);
-  A("txt29C", 0);
-  A("txt29D", 0);
-  A("txt30", 0);
-  A("txt31A", 0);
-  A("txt31B", 0);
-  A("txt31C", 0);
-  A("txt31D", 0);
-  A("txt31E", 0);
-  A("txt31F", 0);
+  // ---- Part II – Total Tax Payable (txt26A..txt34) ----
+  A("txt26A", comp.i14); // Income Tax Due – Regular/Normal Rate (Sch 2 Item 13)
+  A("txt26B", comp.i15); // Less: Unexpired Excess of Prior Year's MCIT
+  A("txt27", comp.i16); // Balance/Income Tax Still Due – Regular Rate
+  A("txt28", comp.i17); // Add: Income Tax Due – Special Rate (Sch 1 Item 13)
+  // Schedule 4 – Tax Credits/Payments detail (Items 1..6b → Part II Item 19).
+  A("txt29A", comp.sch4_1); // Prior Year's Excess Credits
+  A("txt29B", comp.sch4_2); // Tax payments previous quarter/s (other than MCIT)
+  A("txt29C", comp.sch4_3); // MCIT payments previous quarter/s
+  A("txt29D", comp.sch4_4); // Creditable Tax Withheld previous quarter/s
+  A("txt30", comp.i18); // Aggregate Income Tax Due (Items 16 + 17)
+  A("txt31A", comp.sch4_5); // Creditable Tax Withheld per 2307 this quarter
+  A("txt31B", comp.sch4_6); // Tax paid in previously-filed return (amended)
+  A("txt31C", comp.sch4_6a); // Other Tax Credits/Payments (a)
+  A("txt31D", comp.sch4_6b); // Other Tax Credits/Payments (b)
+  A("txt31E", comp.sch4_7); // Total Tax Credits/Payments (Sch 4 Item 7 → Item 19)
+  A("txt31F", comp.i20); // Net Tax Payable / (Overpayment)
   P("txt31Gothers", "");
-  A("txt31G", 0);
-  A("txt31H", 0);
-  A("txt32", 0);
-  A("txt33A", 0);
+  A("txt31G", comp.i21); // Surcharge
+  A("txt31H", comp.i22); // Interest
+  A("txt32", comp.i23); // Compromise
+  A("txt33A", comp.i24); // Total Penalties (Items 21 to 23)
   A("txt33B", 0);
   A("txt33C", 0);
   A("txt33D", 0);
-  A("txt34", 0);
+  A("txt34", comp.i25); // TOTAL AMOUNT PAYABLE / (Overpayment)
 
   // ---- Globals: Codename1..18 (Codename1=true, the rest false) ----
   for (let i = 1; i <= 18; i++) G(`Codename${i}`, rb(i === 1));
 
-  // ---- Globals: quarterly MCIT carry-forward + rate ----
-  G("txt1stQtr", amt(0));
-  G("txt2ndQtr", amt(0));
-  G("txt3rdQtr", amt(0));
-  G("txtTotal", amt(0));
+  // ---- Globals: Schedule 3 quarterly MCIT gross income + 2% rate + MCIT ----
+  G("txt1stQtr", amt(comp.sch3_1));
+  G("txt2ndQtr", amt(comp.sch3_2));
+  G("txt3rdQtr", amt(comp.sch3_3));
+  G("txtTotal", amt(comp.sch3_4));
   G("txtTaxRate", "2%");
   G("txtMinCorpIncomeTax", amt(comp.mcit));
 

@@ -89,32 +89,38 @@ export function build1701Q(filing: Filing, tp: Taxpayer | null, comp: Comp1701Q)
   P("optMethodOfDeduction:_2", rb(d.methodA === "osd"));
   P("optTaxRate_2", rb(rate === "eight"));
 
-  // ---- Spouse background ----
+  // ---- Spouse background (Part II, items 17-25) ----
   const stin = String(d.spouseTin || "").replace(/\D/g, "");
   P("txtSpouseTIN1", stin.slice(0, 3));
   P("txtSpouseTIN2", stin.slice(3, 6));
   P("txtSpouseTIN3", stin.slice(6, 9));
   P("txtSpouseBranchCode", stin ? "000" : "");
   P("txtSpouseRDOCode", (d.spouseRdo as string) || "000");
+  // Item 19 — Spouse Type: single / prof / compensation earner.
   P("optSpouseType_1", rb(d.spouseType === "single"));
   P("optSpouseType_2", rb(d.spouseType === "prof"));
-  P("optSpouseType_3", rb(d.spouseType === "estate"));
-  P("optSpouseATC_1", rb(false));
-  P("optSpouseATC_2", rb(false));
-  P("optSpouseATC_3", rb(false));
-  P("optSpouseATC_4", rb(false));
-  P("optSpouseATC_5", rb(false));
-  P("optSpouseATC_6", rb(false));
-  P("optSpouseATC_7", rb(false));
+  P("optSpouseType_3", rb(d.spouseType === "comp"));
+  // Item 20 — Spouse ATC: II012, II014, II013, II011, II015, II017, II016.
+  const satc = d.spouseAtc as string | undefined;
+  P("optSpouseATC_1", rb(satc === "II012"));
+  P("optSpouseATC_2", rb(satc === "II014"));
+  P("optSpouseATC_3", rb(satc === "II013"));
+  P("optSpouseATC_4", rb(satc === "II011"));
+  P("optSpouseATC_5", rb(satc === "II015"));
+  P("optSpouseATC_6", rb(satc === "II017"));
+  P("optSpouseATC_7", rb(satc === "II016"));
   P("txtSpouseName", enc(d.spouseName));
   P("txtSpouseCitizenship", enc(d.spouseCitizenship));
   P("txtSpouseForeignTaxNum", enc(d.spouseForeignTaxNo));
-  P("optSpouseForeignTaxCred_1", rb(false));
-  P("optSpouseForeignTaxCred_2", rb(false));
-  P("optSpouseTaxRate_1", rb(false));
-  P("optSpouseMethod:_1", rb(false));
-  P("optSpouseMethod:_2", rb(false));
-  P("optSpouseTaxRate_2", rb(false));
+  // Item 24 — Spouse claiming Foreign Tax Credits?
+  P("optSpouseForeignTaxCred_1", rb(d.spouseForeignCredit === "yes"));
+  P("optSpouseForeignTaxCred_2", rb(d.spouseForeignCredit !== "yes"));
+  // Item 25 / 25A — Spouse Tax Rate + Method of Deduction.
+  const srate = (d.rateB as string) || "graduated";
+  P("optSpouseTaxRate_1", rb(srate !== "eight"));
+  P("optSpouseMethod:_1", rb(d.methodB === "itemized"));
+  P("optSpouseMethod:_2", rb(d.methodB === "osd"));
+  P("optSpouseTaxRate_2", rb(srate === "eight"));
 
   // ---- Part III: Total Tax Payable (items 26-31), A = filer, B = spouse ----
   // 26 Tax Due, 27 Tax Credits/Payments, 28 Tax Payable, 29 Penalties,
@@ -158,24 +164,33 @@ export function build1701Q(filing: Filing, tp: Taxpayer | null, comp: Comp1701Q)
   P("txtPg2TaxpayerName", tp ? (tp.kind === "individual" ? tp.lastName : tp.regName) || "" : "");
 
   // ---- Part V: Computation of Tax (items 36-68), A = filer, B = spouse ----
-  // Schedule I (graduated) 36-46, Schedule II (8%) 47-54, Schedule III 55-62,
-  // plus carry-forward/summary lines 63-68. Description fields appear at 43/48/61.
-  // The app's compute supplies a subset of these; unmapped lines emit "0.00".
-  const mapA: Record<number, number | undefined> = {
-    36: A.sales, 37: A.returns, 38: A.netSales, 39: A.cogs, 40: A.gross,
-    41: A.deductions, 42: A.netIncome, 43: A.otherInc, 44: A.prevTaxable,
-    45: A.taxableCum, 46: A.gradTax, 47: A.gross8, 48: A.prev8, 49: A.cum8,
-    50: A.reduce8, 51: A.taxable8, 52: A.tax8, 53: A.taxDue, 54: A.taxDue,
-    55: A.excess, 56: A.prevPaid, 57: A.cwt, 62: A.credits,
-  };
-  const mapB: Record<number, number | undefined> = {
-    36: B.sales, 37: B.returns, 38: B.netSales, 39: B.cogs, 40: B.gross,
-    41: B.deductions, 42: B.netIncome, 43: B.otherInc, 44: B.prevTaxable,
-    45: B.taxableCum, 46: B.gradTax, 47: B.gross8, 48: B.prev8, 49: B.cum8,
-    50: B.reduce8, 51: B.taxable8, 52: B.tax8, 53: B.taxDue, 54: B.taxDue,
-    55: B.excess, 56: B.prevPaid, 57: B.cwt, 62: B.credits,
-  };
-  const descFields: Record<number, string> = { 43: "i43label", 48: "i48label", 61: "i61label" };
+  // Schedule I (graduated) 36-46: 36 net sales, 37 cost of sales, 38 gross income,
+  //   39 itemized deductions, 40 OSD, 41 net income, 42 prev-quarter taxable,
+  //   43 non-operating income (specify), 44 GPP share, 45 total taxable to date,
+  //   46 tax due. Schedule II (8%) 47-54: 47 net sales, 48 non-op income (specify),
+  //   49 total income, 50 prev-quarter taxable, 51 cumulative, 52 P250k reduction,
+  //   53 taxable to date, 54 tax due. Schedule III 55-62: 55 prior-year excess,
+  //   56 prev-quarter payments, 57 CWT prior quarters, 58 CWT this quarter (2307),
+  //   59 tax paid in prior amended return, 60 foreign tax credits, 61 other credits
+  //   (specify), 62 total credits. 63 tax payable, Schedule IV 64-67 (surcharge,
+  //   interest, compromise, total penalties), 68 total amount payable.
+  // Description fields appear at 43/48/61. The "39 vs 40" split depends on method:
+  //   itemized → 39 = deductions, 40 = 0; OSD → 39 = 0, 40 = deductions.
+  const side = (o: typeof A): Record<number, number | undefined> => ({
+    36: o.sales, 37: o.cogs, 38: o.gross,
+    39: o.method === "osd" ? 0 : o.deductions, 40: o.method === "osd" ? o.deductions : 0,
+    41: o.netIncome, 42: o.prevTaxable, 43: o.nonOpInc, 44: o.gppShare,
+    45: o.taxableCum, 46: o.gradTax,
+    47: o.sales8, 48: o.nonOpInc8, 49: o.income8, 50: o.prev8, 51: o.cum8,
+    52: o.reduce8, 53: o.taxable8, 54: o.tax8,
+    55: o.excess, 56: o.prevPaid, 57: o.cwtPrev, 58: o.cwt, 59: o.taxPaidPrev,
+    60: o.foreignCredits, 61: o.otherCredits, 62: o.credits,
+    63: o.payable, 64: o.surcharge, 65: o.interest, 66: o.compromise,
+    67: o.penalties, 68: o.totalPayable,
+  });
+  const mapA = side(A);
+  const mapB = side(B);
+  const descFields: Record<number, string> = { 43: "nonOpDescA", 48: "nonOp8DescA", 61: "otherCreditsDescA" };
   for (let i = 36; i <= 68; i++) {
     if (descFields[i]) P(`txt${i}Desc`, enc(d[descFields[i]]));
     P(`txt${i}A`, amt(mapA[i] ?? 0));
