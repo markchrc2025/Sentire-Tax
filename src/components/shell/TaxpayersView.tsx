@@ -6,6 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { displayName, formatTin, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { Taxpayer, TaxpayerKind, TaxType } from "../../types";
+import type { ExtractedCor } from "../../lib/cor/parseCor";
 import { Icon, SIco } from "../icons";
 
 type TaxpayerDraft = Partial<Taxpayer> & { kind: TaxpayerKind };
@@ -145,6 +146,57 @@ function TaxpayerEditor({
   const [corUrl, setCorUrl] = useState<string | null>(null);
   const [corBusy, setCorBusy] = useState(false);
   const hasCor = Boolean(f.corPath) || Boolean(corFile);
+
+  // Client-side OCR auto-extract of the picked COR (runs in the browser).
+  const [extracting, setExtracting] = useState(false);
+  const [extractStage, setExtractStage] = useState("");
+  const [extractPct, setExtractPct] = useState(0);
+  const [extracted, setExtracted] = useState<ExtractedCor | null>(null);
+  const [extractErr, setExtractErr] = useState<string | null>(null);
+
+  async function onPickCor(file: File | null) {
+    setCorFile(file);
+    setExtracted(null);
+    setExtractErr(null);
+    if (!file) return;
+    setExtracting(true);
+    setExtractStage("Preparing document");
+    setExtractPct(0);
+    try {
+      // Lazy-load so pdf.js + Tesseract stay out of the main bundle.
+      const { extractCorFromFile } = await import("../../lib/cor/extractCor");
+      const res = await extractCorFromFile(file, (stage, pct) => {
+        setExtractStage(stage);
+        setExtractPct(pct);
+      });
+      setExtracted(res);
+    } catch (e) {
+      setExtractErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  /** Apply non-empty extracted values into the draft (user-reviewed). */
+  function applyExtracted(x: ExtractedCor) {
+    setF((o) => {
+      const n = { ...o };
+      if (x.kind) n.kind = x.kind;
+      if (x.regName) n.regName = x.regName;
+      if (x.lastName) n.lastName = x.lastName;
+      if (x.firstName) n.firstName = x.firstName;
+      if (x.middleName) n.middleName = x.middleName;
+      if (x.tradeName) n.tradeName = x.tradeName;
+      if (x.tin) n.tin = x.tin;
+      if (x.branch) n.branch = x.branch;
+      if (x.rdo) n.rdo = x.rdo;
+      if (x.address) n.address = x.address;
+      if (x.zip) n.zip = x.zip;
+      if (x.taxTypes && x.taxTypes.length) n.taxTypes = x.taxTypes;
+      return n;
+    });
+    setExtracted(null);
+  }
 
   useEffect(() => {
     let active = true;
@@ -325,7 +377,7 @@ function TaxpayerEditor({
                     type="file"
                     accept="application/pdf,image/*"
                     style={{ display: "none" }}
-                    onChange={(e) => setCorFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => onPickCor(e.target.files?.[0] ?? null)}
                   />
                 </label>
                 {corFile ? (
@@ -342,9 +394,61 @@ function TaxpayerEditor({
                     </button>
                   </>
                 ) : (
-                  <span className="s-cor-hint">PDF or image, stored privately for this taxpayer.</span>
+                  <span className="s-cor-hint">PDF or image. Read on your device — we auto-fill the fields below.</span>
                 )}
               </div>
+
+              {extracting && (
+                <div className="s-cor-extract">
+                  <span className="s-cor-extract-stage">
+                    Reading COR… {extractStage} ({Math.round(extractPct * 100)}%)
+                  </span>
+                  <div className="s-cor-extract-bar">
+                    <div style={{ width: `${Math.round(extractPct * 100)}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {extractErr && !extracting && (
+                <span className="s-cor-hint">
+                  Couldn&rsquo;t read the COR automatically ({extractErr}). You can still fill the fields by hand.
+                </span>
+              )}
+
+              {extracted && !extracting && (
+                <div className="s-cor-extract review">
+                  <div className="s-cor-extract-head">
+                    <b>Details read from the COR</b>
+                    <span>Review and apply — always double-check against the document.</span>
+                  </div>
+                  <ul className="s-cor-extract-list">
+                    {extractSummary(extracted).map((row) => (
+                      <li key={row.label}>
+                        <span className="k">{row.label}</span>
+                        <span className="v">{row.value}</span>
+                      </li>
+                    ))}
+                    {extractSummary(extracted).length === 0 && (
+                      <li>
+                        <span className="v">No fields could be read confidently — please enter them manually.</span>
+                      </li>
+                    )}
+                  </ul>
+                  <div className="s-cor-extract-acts">
+                    <button className="s-btn" type="button" onClick={() => setExtracted(null)}>
+                      Dismiss
+                    </button>
+                    <button
+                      className="s-btn s-btn-primary"
+                      type="button"
+                      disabled={extractSummary(extracted).length === 0}
+                      onClick={() => applyExtracted(extracted)}
+                    >
+                      Apply to form
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -374,6 +478,24 @@ function TaxpayerEditor({
       </div>
     </div>
   );
+}
+
+/** Human-readable summary of the fields OCR read from a COR, for the review panel. */
+function extractSummary(x: ExtractedCor): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const name = x.regName || [x.lastName, x.firstName].filter(Boolean).join(", ");
+  if (name) rows.push({ label: "Name", value: name });
+  if (x.tradeName) rows.push({ label: "Trade Name", value: x.tradeName });
+  if (x.tin) rows.push({ label: "TIN", value: formatTin(x.tin) + (x.branch ? " · " + x.branch : "") });
+  if (x.rdo) rows.push({ label: "RDO", value: x.rdo });
+  if (x.address) rows.push({ label: "Address", value: x.address + (x.zip ? " " + x.zip : "") });
+  if (x.taxTypes?.length) {
+    rows.push({
+      label: `Tax Types (${x.taxTypes.length})`,
+      value: x.taxTypes.map((t) => t.type + (t.form ? ` (${t.form})` : "")).join(", "),
+    });
+  }
+  return rows;
 }
 
 // Suggestions for the COR "Tax Types" table — free text is still allowed.
