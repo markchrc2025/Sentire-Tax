@@ -1658,6 +1658,66 @@ a.s-cor-name {
   color: var(--muted-2);
 }
 
+/* Tax Types editor (COR "Tax Types" table) */
+.s-tt {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px;
+  border: 1px dashed #ddd5c9;
+  border-radius: 11px;
+  background: #fcfaf6;
+}
+.s-tt-row {
+  display: grid;
+  grid-template-columns: 1.5fr 0.9fr 1fr 1fr 32px;
+  gap: 8px;
+  align-items: center;
+}
+.s-tt-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+  padding: 0 2px;
+}
+.s-tt-row input,
+.s-tt-row select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--line, #e4ddd0);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink);
+  box-sizing: border-box;
+}
+.s-tt-row input:focus,
+.s-tt-row select:focus {
+  outline: none;
+  border-color: var(--acc);
+}
+.s-tt-del {
+  justify-self: center;
+  color: var(--muted);
+}
+.s-tt-del:hover {
+  color: var(--danger, #c0392b);
+}
+.s-tt-add {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+@media (max-width: 640px) {
+  .s-tt-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .s-tt-head {
+    display: none;
+  }
+}
+
 /* write-failure banner (cloud mode) */
 .s-errbar {
   position: fixed;
