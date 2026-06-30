@@ -1,11 +1,12 @@
 // Form1701A.tsx — faithful 1701A replica (pages 1 & 2).
 // Ported from form-1701A-p1.jsx + form-1701A-p2.jsx.
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1701A } from "../../lib/compute";
 import type { FormProps } from "../formProps";
+import type { FilingData } from "../../types";
 import { SEAL_SRC } from "../formparts";
-import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 import { fmtAmt } from "../../lib/format";
 
 function fmtDOB(iso?: string): string {
@@ -13,6 +14,97 @@ function fmtDOB(iso?: string): string {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return m + "/" + d + "/" + y;
+}
+
+// ── form-wide context so the row helpers below can live at MODULE scope.
+//    Defining them inside the page components gave each render a new component
+//    type, which remounted every <input> on each keystroke and dropped the
+//    cursor. ──
+interface Ctx1701A {
+  data: FilingData;
+  set: SetFn;
+}
+const FormCtx = createContext<Ctx1701A | null>(null);
+const useF = () => useContext(FormCtx) as Ctx1701A;
+
+// ── Part II row: number | label | A amount | B amount (page 1) ──
+function Row2({
+  no,
+  label,
+  fieldBase,
+  roA,
+  roB,
+  valA,
+  valB,
+  sub,
+}: {
+  no: string;
+  label: string;
+  fieldBase: string;
+  roA?: boolean;
+  roB?: boolean;
+  valA?: number;
+  valB?: number;
+  sub?: string;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt">
+      <div className="num">{no}</div>
+      <div className="desc">
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br">
+        <BirAmt field={fieldBase + "A"} data={data} set={set} ro={roA} value={valA} />
+      </div>
+      <div className="amtcell">
+        <BirAmt field={fieldBase + "B"} data={data} set={set} ro={roB} value={valB} />
+      </div>
+    </div>
+  );
+}
+
+// ── Part IV computation row: number | label | A amount | B amount (page 2) ──
+function CRow({
+  no,
+  label,
+  sub,
+  base,
+  roA,
+  roB,
+  valA,
+  valB,
+  strong,
+  indent,
+}: {
+  no: string;
+  label: ReactNode;
+  sub?: string;
+  base: string;
+  roA?: boolean;
+  roB?: boolean;
+  valA?: number;
+  valB?: number;
+  strong?: boolean;
+  indent?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt">
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400, paddingLeft: indent ? 14 : 4 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br">
+        <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
+      </div>
+      <div className="amtcell br">
+        <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
+      </div>
+    </div>
+  );
 }
 
 function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
@@ -24,43 +116,8 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
       : tp.regName
     : "";
 
-  function Row2({
-    no,
-    label,
-    fieldBase,
-    roA,
-    roB,
-    valA,
-    valB,
-    sub,
-  }: {
-    no: string;
-    label: string;
-    fieldBase: string;
-    roA?: boolean;
-    roB?: boolean;
-    valA?: number;
-    valB?: number;
-    sub?: string;
-  }) {
-    return (
-      <div className="bir-line bt">
-        <div className="num">{no}</div>
-        <div className="desc">
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br">
-          <BirAmt field={fieldBase + "A"} data={data} set={set} ro={roA} value={valA} />
-        </div>
-        <div className="amtcell">
-          <BirAmt field={fieldBase + "B"} data={data} set={set} ro={roB} value={valB} />
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <FormCtx.Provider value={{ data, set }}>
     <div className="bir-sheet bir-1701a-p1">
       {/* ===== HEADER ===== */}
       <div className="row b">
@@ -518,6 +575,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
         *NOTE: The BIR Data Privacy Policy is in the BIR website (www.bir.gov.ph)
       </div>
     </div>
+    </FormCtx.Provider>
   );
 }
 
@@ -526,47 +584,8 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
   const is = (f: string, v: string) => data[f] === v;
   const lastName = tp ? (tp.kind === "individual" ? tp.lastName : tp.regName) : "";
 
-  function CRow({
-    no,
-    label,
-    sub,
-    base,
-    roA,
-    roB,
-    valA,
-    valB,
-    strong,
-    indent,
-  }: {
-    no: string;
-    label: ReactNode;
-    sub?: string;
-    base: string;
-    roA?: boolean;
-    roB?: boolean;
-    valA?: number;
-    valB?: number;
-    strong?: boolean;
-    indent?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt">
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400, paddingLeft: indent ? 14 : 4 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br">
-          <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
-        </div>
-        <div className="amtcell br">
-          <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <FormCtx.Provider value={{ data, set }}>
     <div className="bir-sheet bir-1701a-p2" data-rate={(data.taxRate as string) || "graduated"}>
       {/* header strip */}
       <div className="row b">
@@ -882,6 +901,7 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
         </div>
       </div>
     </div>
+    </FormCtx.Provider>
   );
 }
 

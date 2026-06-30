@@ -2,11 +2,62 @@
 // Quarterly Income Tax Return (Individuals, Estates & Trusts).
 // Ported from form-1701Q.jsx.
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1701Q } from "../../lib/compute";
 import type { FormProps } from "../formProps";
+import type { FilingData } from "../../types";
 import { BirHeader, DeclSign, PartBand, PaymentDetails } from "../formparts";
-import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
+
+// ── form-wide context so the row helper below can live at MODULE scope.
+//    Defining CRow inside the component gave each render a new component type,
+//    which remounted every <input> on each keystroke and dropped the cursor. ──
+interface Ctx1701Q {
+  data: FilingData;
+  set: SetFn;
+}
+const FormCtx = createContext<Ctx1701Q | null>(null);
+const useF = () => useContext(FormCtx) as Ctx1701Q;
+
+// computation line A/B
+function CRow({
+  no,
+  label,
+  sub,
+  base,
+  roA,
+  roB,
+  valA,
+  valB,
+  strong,
+}: {
+  no: string;
+  label: ReactNode;
+  sub?: string;
+  base: string;
+  roA?: boolean;
+  roB?: boolean;
+  valA?: number;
+  valB?: number;
+  strong?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt">
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br">
+        <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
+      </div>
+      <div className="amtcell br">
+        <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
+      </div>
+    </div>
+  );
+}
 
 export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
   const pick = (f: string, v: string) => set(f, data[f] === v ? "" : v);
@@ -17,50 +68,11 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
       : tp.regName
     : "";
 
-  // computation line A/B
-  function CRow({
-    no,
-    label,
-    sub,
-    base,
-    roA,
-    roB,
-    valA,
-    valB,
-    strong,
-  }: {
-    no: string;
-    label: ReactNode;
-    sub?: string;
-    base: string;
-    roA?: boolean;
-    roB?: boolean;
-    valA?: number;
-    valB?: number;
-    strong?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt">
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br">
-          <BirAmt field={base + "A"} data={data} set={set} ro={roA} value={valA} />
-        </div>
-        <div className="amtcell br">
-          <BirAmt field={base + "B"} data={data} set={set} ro={roB} value={valB} />
-        </div>
-      </div>
-    );
-  }
-
   const A = comp.A;
   const Bb = comp.B;
 
   return (
-    <>
+    <FormCtx.Provider value={{ data, set }}>
       {/* PAGE 1 */}
       <div className="bir-sheet">
         <BirHeader
@@ -363,6 +375,6 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
           </div>
         </div>
       </div>
-    </>
+    </FormCtx.Provider>
   );
 }
