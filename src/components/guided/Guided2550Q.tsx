@@ -61,10 +61,20 @@ export function Guided2550Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
           <F.Q item="Item 33" label="Exempt Sales">
             <F.Money field="i33a" />
           </F.Q>
+          <F.Q item="Item 35" label="Less: Output VAT on Uncollected Receivables">
+            <F.Money field="i35b" />
+          </F.Q>
+          <F.Q
+            item="Item 36"
+            label="Add: Output VAT on Recovered Uncollected Receivables Previously Deducted"
+          >
+            <F.Money field="i36b" />
+          </F.Q>
           <F.Result
             rows={[
               { label: "Total sales", value: comp.i34a },
-              { label: "Output tax (12%)", value: comp.i31b, big: true },
+              { label: "Output tax (12%)", value: comp.i34b },
+              { label: "Total adjusted output tax (Item 37)", value: comp.i37, big: true },
             ]}
           />
         </>
@@ -79,6 +89,25 @@ export function Guided2550Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
         <>
           <F.Q item="Item 38" label="Input Tax Carried Over from Previous Quarter">
             <F.Money field="i38" />
+          </F.Q>
+          <F.Q
+            item="Item 39"
+            label="Input Tax Deferred on Capital Goods >P1M from Previous Quarter"
+            help="From Part V – Schedule 1, Column E. Enter here if you are not itemizing the schedule."
+          >
+            <F.Money field="i39" />
+          </F.Q>
+          <F.Q item="Item 40" label="Transitional Input Tax">
+            <F.Money field="i40" />
+          </F.Q>
+          <F.Q item="Item 41" label="Presumptive Input Tax">
+            <F.Money field="i41" />
+          </F.Q>
+          <F.Q item="Item 42" label="Other Input Tax (specify)">
+            <F.Txt field="i42label" ph="Specify other input tax" />
+          </F.Q>
+          <F.Q item="Item 42" label="Other Input Tax — amount">
+            <F.Money field="i42" />
           </F.Q>
           <F.Q item="Item 44B" label="Input Tax on Domestic Purchases (this quarter)">
             <F.Money field="i44b" />
@@ -102,17 +131,37 @@ export function Guided2550Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
       desc: "Apply any VAT withheld/advance payments and penalties.",
       render: () => (
         <>
-          <F.Q item="Item 16" label="Creditable VAT Withheld">
+          <F.Q
+            item="Item 16"
+            label="Creditable VAT Withheld"
+            help="From Part V – Schedule 3, Column D. Enter here if you are not itemizing the schedule."
+          >
             <F.Money field="i16" />
           </F.Q>
-          <F.Q item="Item 17" label="Advance VAT Payments">
+          <F.Q
+            item="Item 17"
+            label="Advance VAT Payments"
+            help="From Part V – Schedule 4. Enter here if you are not itemizing the schedule."
+          >
             <F.Money field="i17" />
           </F.Q>
-          <F.Q label="Surcharge">
+          <F.Q item="Item 18" label="VAT paid in return previously filed, if this is an amended return">
+            <F.Money field="i18" />
+          </F.Q>
+          <F.Q item="Item 19" label="Other Credits/Payment (specify)">
+            <F.Txt field="i19label" ph="Specify other credits/payment" />
+          </F.Q>
+          <F.Q item="Item 19" label="Other Credits/Payment — amount">
+            <F.Money field="i19" />
+          </F.Q>
+          <F.Q item="Item 22" label="Surcharge">
             <F.Money field="i22" />
           </F.Q>
-          <F.Q label="Interest">
+          <F.Q item="Item 23" label="Interest">
             <F.Money field="i23" />
+          </F.Q>
+          <F.Q item="Item 24" label="Compromise">
+            <F.Money field="i24" />
           </F.Q>
           <F.Result
             rows={[

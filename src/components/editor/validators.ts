@@ -133,7 +133,7 @@ export function validate1701Q(d: FilingData, comp: Comp1701Q, ctx: ValidationCon
   if (isQuarter(ctx.period, 4))
     out.push(warn("1701Q covers the 1st–3rd quarters only — file the annual 1701/1701A for the year."));
 
-  if (d.rateA === "eight" && comp.A.gross8 > VAT_THRESHOLD)
+  if (d.rateA === "eight" && comp.A.income8 > VAT_THRESHOLD)
     out.push(err(`8% rate unavailable — cumulative gross sales/receipts exceed ₱${VAT_THRESHOLD.toLocaleString()}.`));
 
   out.push(info("1701Q deadlines: Q1 May 15 · Q2 Aug 15 · Q3 Nov 15."));

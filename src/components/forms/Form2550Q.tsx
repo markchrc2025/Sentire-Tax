@@ -1,10 +1,12 @@
-// Form2550Q.tsx — faithful 2550Q replica (Quarterly Value-Added Tax Return).
-// Ported from form-2550Q.jsx (pages 1, 2 & 3 — full official line items).
+// Form2550Q.tsx — faithful 2550Q replica (Quarterly Value-Added Tax Return,
+// April 2024 ENCS). Two sheets, matching the official two-page layout:
+//   Page 1 — Period, Part I Background, Part II Total Tax Payable, signature,
+//            Part III Details of Payment.
+//   Page 2 — Part IV Details of VAT Computation, then Part V Schedules 1-4.
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Comp2550Q } from "../../lib/compute";
 import type { FilingData, FilingRow } from "../../types";
-import { num } from "../../lib/format";
 import type { FormProps } from "../formProps";
 import {
   BirHeader,
@@ -307,7 +309,18 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
           <L1 no="16" label="Creditable VAT Withheld" sub="(From Part V - Schedule 3, Column D)" field="i16" />
           <L1 no="17" label="Advance VAT Payments" sub="(From Part V - Schedule 4)" field="i17" />
           <L1 no="18" label="VAT paid in return previously filed, if amended" field="i18" />
-          <L1 no="19" label="Other Credits/Payment (specify)" field="i19" />
+          <L1
+            no="19"
+            label={
+              <span>
+                Other Credits/Payment (specify){" "}
+                <span style={{ display: "inline-block", width: 220, verticalAlign: "middle" }}>
+                  <BirText field="i19label" data={data} set={set} />
+                </span>
+              </span>
+            }
+            field="i19"
+          />
           <L1 no="20" label="Total Tax Credits/Payment (Sum of Items 16 to 19)" ro value={comp.i20} strong />
           <L1 no="21" label="Tax Still Payable/(Excess Credits) (Item 15 Less Item 20)" ro value={comp.i21} strong />
           <div className="bir-line bt">
@@ -390,10 +403,26 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
         </div>
         <div className="b" style={{ borderTop: 0 }}>
           <L1B no="38" label="Input Tax Carried Over from Previous Quarter" field="i38" />
-          <L1B no="39" label="Input Tax Deferred on Capital Goods (>P1M) from Previous Quarter" field="i39" />
+          <L1B
+            no="39"
+            label="Input Tax Deferred on Capital Goods (>P1M) from Previous Quarter (From Part V - Schedule 1, Col E)"
+            ro
+            value={comp.i39}
+          />
           <L1B no="40" label="Transitional Input Tax" field="i40" />
           <L1B no="41" label="Presumptive Input Tax" field="i41" />
-          <L1B no="42" label="Others (specify)" field="i42" />
+          <L1B
+            no="42"
+            label={
+              <span>
+                Others (specify){" "}
+                <span style={{ display: "inline-block", width: 240, verticalAlign: "middle" }}>
+                  <BirText field="i42label" data={data} set={set} />
+                </span>
+              </span>
+            }
+            field="i42"
+          />
           <L1B no="43" label="Total (Sum of Items 38B to 42B)" ro value={comp.i43} strong />
         </div>
 
@@ -410,7 +439,19 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
           <L2 no="44" label="Domestic Purchases" a="i44a" b="i44b" />
           <L2 no="45" label="Services Rendered by Non-Residents" a="i45a" b="i45b" />
           <L2 no="46" label="Importations" a="i46a" b="i46b" />
-          <L2 no="47" label="Others (specify)" a="i47a" b="i47b" />
+          <L2
+            no="47"
+            label={
+              <span>
+                Others (specify){" "}
+                <span style={{ display: "inline-block", width: 200, verticalAlign: "middle" }}>
+                  <BirText field="i47label" data={data} set={set} />
+                </span>
+              </span>
+            }
+            a="i47a"
+            b="i47b"
+          />
           <L2 no="48" label="Domestic Purchases with No Input Tax" a="i48a" bBlank />
           <L2 no="49" label="VAT-Exempt Importations" a="i49a" bBlank />
           <L2 no="50" label="Total Current Purchases / Input Tax (44A–49A / 44B–47B)" aRo aVal={comp.i50a} bRo bVal={comp.i50b} strong />
@@ -427,91 +468,124 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
           <div className="amtcell br bir-amthead">B. Input Tax</div>
         </div>
         <div className="b" style={{ borderTop: 0 }}>
-          <L1B no="52" label="Input Tax on Capital Goods (>P1M) deferred for succeeding period" field="i52" />
-          <L1B no="53" label="Input Tax Attributable to VAT Exempt Sales (Schedule 2)" field="i53" />
+          <L1B
+            no="52"
+            label="Input Tax on Capital Goods (>P1M) deferred for succeeding period (From Part V - Schedule 1, Col I)"
+            ro
+            value={comp.i52}
+          />
+          <L1B
+            no="53"
+            label="Input Tax Attributable to VAT Exempt Sales (From Part V - Schedule 2)"
+            ro
+            value={comp.i53}
+          />
           <L1B no="54" label="VAT Refund/TCC Claimed" field="i54" />
           <L1B no="55" label="Input VAT on Unpaid Payables" field="i55" />
-          <L1B no="56" label="Others (specify)" field="i56" />
+          <L1B
+            no="56"
+            label={
+              <span>
+                Others (specify){" "}
+                <span style={{ display: "inline-block", width: 240, verticalAlign: "middle" }}>
+                  <BirText field="i56label" data={data} set={set} />
+                </span>
+              </span>
+            }
+            field="i56"
+          />
           <L1B no="57" label="Total Deductions from Input Tax (Sum of Items 52B to 56B)" ro value={comp.i57} strong />
           <L1B no="58" label="Add: Input VAT on Settled Unpaid Payables Previously Deducted" field="i58" />
           <L1B no="59" label="Adjusted Deductions from Input Tax (Sum of Items 57B and 58B)" ro value={comp.i59} strong />
           <L1B no="60" label="Total Allowable Input Tax (Item 51B Less Item 59B)" ro value={comp.i60} strong bg />
           <L1B no="61" label="Net VAT Payable/(Excess Input Tax) (Item 37B Less 60B) (To Part II, Item 15)" ro value={comp.i61} strong bg />
         </div>
-      </div>
 
-      {/* ============ PAGE 3 — Part V Schedules ============ */}
-      <div className="bir-sheet">
-        <BirHeader
-          code="2550Q"
-          date="April 2024 (ENCS)"
-          page="3"
-          title="Quarterly Value-Added Tax (VAT) Return"
-          pcode="2550Q 04/24 ENCS P3"
-        />
-        <div className="bir-section b" style={{ borderTop: 0 }}>
+        {/* ---- Part V – Schedules (official page 2, after Part IV) ---- */}
+        <div className="bir-section b" style={{ borderTop: 0, marginTop: 8 }}>
           Part V – Schedules
         </div>
 
         <SchedTable
-          title="Schedule 1 – Amortized Input Tax from Capital Goods"
+          title="Schedule 1 – Amortized Input Tax from Capital Goods (Attach additional sheet/s, if necessary)"
           cols={[
-            "Date Purchased/Imported",
-            "Source Code (D/I)",
-            "Description",
-            "Amount of Purchase (>P1M)",
-            "Balance of Input Tax (Prev.)",
-            "Est. Life (mos)",
-            "Recognized Life (mos)",
-            "Allowable Input Tax",
-            "Balance to Next Period",
+            "Date Purchased/Imported (A)",
+            "Source Code* (B)",
+            "Description (C)",
+            "Amount of Purchase >P1M (D)",
+            "Balance of Input Tax Prev. (E)",
+            "Est. Life — mos (F)",
+            "Recognized Life — mos (G)",
+            "Allowable Input Tax (H)",
+            "Balance to Next Period (I)",
           ]}
           fieldKey="sch1"
           rows={3}
+          amtCols={[3, 4, 5, 6, 7, 8]}
+          totals={[
+            { col: 4, value: comp.sch1TotalE, label: "Col E → Item 39B" },
+            { col: 7, value: comp.sch1TotalH, label: "Col H" },
+            { col: 8, value: comp.sch1TotalI, label: "Col I → Item 52B" },
+          ]}
           data={data}
           set={set}
         />
+        <div style={{ fontSize: 8, color: "#555", padding: "2px 4px" }}>
+          * D for Domestic Purchase; I for Importation. Total (Column E → Part IV, Item 39B) / (Column I → Part IV,
+          Item 52B). **Col H = E ÷ G × number of months in use during the quarter.
+        </div>
 
         <div className="bir-section b" style={{ borderTop: 0, marginTop: 8 }}>
           Schedule 2 – Input Tax Attributable to VAT Exempt Sales
         </div>
         <div className="b" style={{ borderTop: 0 }}>
           <L1 no="" label="Input Tax directly attributable to VAT Exempt Sale" field="sch2_direct" />
-          <L1 no="" label="Add: Ratable portion of Input Tax not directly attributable" field="sch2_ratable" />
+          <L1
+            no=""
+            label="Add: Ratable portion of Input Tax not directly attributable (VAT Exempt Sale ÷ Total Sales × Amount of Input Tax not directly attributable)"
+            field="sch2_ratable"
+          />
           <L1
             no=""
             label="Total Input Tax attributable to Exempt Sale (To Part IV, Item 53)"
             ro
-            value={num(data.sch2_direct) + num(data.sch2_ratable)}
+            value={comp.sch2Total}
             strong
           />
         </div>
 
         <SchedTable
-          title="Schedule 3 – Creditable VAT Withheld"
+          title="Schedule 3 – Creditable VAT Withheld (Attach additional sheet/s, if necessary)"
           cols={[
-            "Period Covered",
-            "Name of Withholding Agent",
-            "Income Payment",
-            "Total Tax Withheld (To Part II, Item 16)",
+            "Period Covered (A)",
+            "Name of Withholding Agent (B)",
+            "Income Payment (C)",
+            "Total Tax Withheld (D)",
           ]}
           fieldKey="sch3"
           rows={3}
+          amtCols={[2, 3]}
+          totals={[
+            { col: 2, value: comp.sch3TotalC, label: "Col C" },
+            { col: 3, value: comp.sch3TotalD, label: "Col D → Item 16" },
+          ]}
           data={data}
           set={set}
         />
 
         <SchedTable
-          title="Schedule 4 – Advance VAT Payment"
+          title="Schedule 4 – Advance VAT Payment (Attach additional sheet/s, if necessary)"
           cols={[
-            "Period Covered",
-            "Name of Miller",
-            "Name of Taxpayer",
-            "OR Number",
-            "Amount Paid (To Part II, Item 17)",
+            "Period Covered (A)",
+            "Name of Miller (B)",
+            "Name of Taxpayer (C)",
+            "Official Receipt Number (D)",
+            "Amount Paid (E)",
           ]}
           fieldKey="sch4"
           rows={3}
+          amtCols={[4]}
+          totals={[{ col: 4, value: comp.sch4Total, label: "Total → Item 17" }]}
           data={data}
           set={set}
         />
@@ -525,12 +599,19 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
   );
 }
 
-// generic schedule table with editable cells
+// generic schedule table with editable cells.
+//   amtCols  — indices rendered as money inputs (others are free text).
+//   totals   — { colIndex: { value, label } } rows rendered as a computed
+//              total spanning the table footer (so Part V totals feed Part IV).
+// Defined at MODULE scope; reads/writes data via the props passed by the form
+// (it does not render any input-bearing component declared inside the form body).
 function SchedTable({
   title,
   cols,
   fieldKey,
   rows,
+  amtCols,
+  totals,
   data,
   set,
 }: {
@@ -538,6 +619,8 @@ function SchedTable({
   cols: string[];
   fieldKey: string;
   rows: number;
+  amtCols?: number[];
+  totals?: Array<{ col: number; value: number; label: string }>;
   data: FilingData;
   set: SetFn;
 }) {
@@ -545,6 +628,7 @@ function SchedTable({
   const list: FilingRow[] = Array.isArray(stored)
     ? stored
     : Array.from({ length: rows }, () => ({}) as FilingRow);
+  const isAmt = (c: number) => !!amtCols && amtCols.includes(c);
 
   function setCell(i: number, c: number, v: string) {
     const base = Array.isArray(data[fieldKey])
@@ -576,11 +660,32 @@ function SchedTable({
         <div className="row b" style={{ borderTop: 0 }} key={ri}>
           {cols.map((_c, ci) => (
             <div key={ci} className={ci < cols.length - 1 ? "br" : ""} style={{ flex: 1 }}>
-              <BirText field={"c" + ci} data={r} set={(_k, v) => setCell(ri, ci, v)} lower />
+              {isAmt(ci) ? (
+                <BirAmt field={"c" + ci} data={r} set={(_k, v) => setCell(ri, ci, v)} />
+              ) : (
+                <BirText field={"c" + ci} data={r} set={(_k, v) => setCell(ri, ci, v)} lower />
+              )}
             </div>
           ))}
         </div>
       ))}
+      {totals && totals.length > 0 && (
+        <div className="row b" style={{ borderTop: 0, fontWeight: 700, fontSize: 8.4 }}>
+          {cols.map((_c, ci) => {
+            const tot = totals.find((t) => t.col === ci);
+            const last = ci === cols.length - 1;
+            return (
+              <div key={ci} className={last ? "" : "br"} style={{ flex: 1 }}>
+                {tot ? (
+                  <BirAmt ro value={tot.value} />
+                ) : ci === 0 ? (
+                  <span style={{ padding: "3px 4px", display: "block" }}>Total</span>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
