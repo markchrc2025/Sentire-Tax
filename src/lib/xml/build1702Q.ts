@@ -103,16 +103,11 @@ export function build1702Q(filing: Filing, tp: Taxpayer | null, comp: Comp1702Q)
   P("optTreaty:_1", rb(d.treaty === "yes"));
   P("optTreaty:_2", rb(d.treaty !== "yes"));
   P("lstTaxTreaty", "0");
-  P("txtTaxTreaty", enc((d.treatySpecify as string) || ""));
 
   // ---- ATC (trailing space is authentic — keep it; default IC010 when blank) ----
+  // The authentic 1702Q XML captures the treaty only via optTreaty/lstTaxTreaty
+  // and carries no signatory title/TIN slots, so none are emitted here.
   P("txtAtc", (d.atc as string) ? String(d.atc) : "IC010 ");
-
-  // ---- Signatories: title + TIN for President/Principal Officer & Treasurer ----
-  P("txtPresidentTitle", enc((d.presTitle as string) || ""));
-  P("txtPresidentTIN", String(d.presTin || "").replace(/\D/g, ""));
-  P("txtTreasurerTitle", enc((d.treasTitle as string) || ""));
-  P("txtTreasurerTIN", String(d.treasTin || "").replace(/\D/g, ""));
 
   // ---- Part IV Schedule 1 (special/exempt) amount fields (txt16A..txt24B) ----
   // The authentic positional block carries Schedule 1's per-item, per-column
