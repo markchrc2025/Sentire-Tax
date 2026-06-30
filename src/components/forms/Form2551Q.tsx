@@ -181,7 +181,20 @@ export function Form2551Q({ tp, data, set, comp }: FormProps<Comp2551Q>) {
           </div>
           <LineAmt no="15" label="Creditable Percentage Tax Withheld per BIR Form No. 2307" field="i15" data={data} set={set} />
           <LineAmt no="16" label="Tax Paid in Return Previously Filed, if this is an Amended Return" field="i16" data={data} set={set} />
-          <LineAmt no="17" label="Other Tax Credit/Payment (specify)" field="i17" data={data} set={set} />
+          <LineAmt
+            no="17"
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, width: "100%" }}>
+                Other Tax Credit/Payment (specify)
+                <span style={{ flex: 1, maxWidth: 280, borderBottom: "0.7px solid var(--ln)" }}>
+                  <BirText field="i17label" data={data} set={set} />
+                </span>
+              </span>
+            }
+            field="i17"
+            data={data}
+            set={set}
+          />
           <LineAmt no="18" label="Total Tax Credits/Payments (Sum of Items 15 to 17)" ro value={comp.i18} data={data} set={set} strong />
           <LineAmt no="19" label="Tax Still Payable/(Overpayment) (Item 14 Less Item 18)" ro value={comp.i19} data={data} set={set} strong />
           <div className="bir-line bt">

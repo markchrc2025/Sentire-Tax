@@ -6,15 +6,31 @@ import type { Row2551Q } from "../../types";
 import type { GuidedProps } from "../formProps";
 import { GuidedShell, gName, makeGuided, type GuidedStep } from "./guidedKit";
 
+// Full official ATC list (Table 1) — [code, description, rate]. Kept in sync
+// with the Form2551Q view so the wizard offers every percentage-tax category.
 const ATC: Array<[string, string, string]> = [
-  ["PT010", "Persons exempt from VAT (Sec. 116)", "3"],
-  ["PT040", "Domestic carriers & keepers of garages", "3"],
-  ["PT041", "International Carriers", "3"],
-  ["PT060", "Franchises on gas & water utilities", "2"],
-  ["PT070", "Franchises on radio/TV broadcasting (≤P10M)", "3"],
-  ["PT090", "Overseas dispatch/message from PH", "10"],
-  ["PT120", "Life Insurance Premiums", "2"],
-  ["PT130", "Agents of Foreign Insurance Cos.", "4"],
+  ["PT010", "Persons exempt from VAT under Sec. 109(BB) (Sec. 116)", "3"],
+  ["PT040", "Domestic carriers and keepers of garages (Sec. 117)", "3"],
+  ["PT041", "International Carriers (Sec. 118)", "3"],
+  ["PT060", "Franchises on gas and water utilities (Sec. 119)", "2"],
+  ["PT070", "Franchises on radio/TV broadcasting (≤P10M) (Sec. 119)", "3"],
+  ["PT090", "Overseas dispatch, message or conversation from PH (Sec. 120)", "10"],
+  ["PT140", "Cockpits (Sec. 125)", "18"],
+  ["PT150", "Amusement places — cabarets, night/day clubs, videoke/karaoke, music lounges (Sec. 125)", "18"],
+  ["PT160", "Boxing Exhibitions (Sec. 125)", "10"],
+  ["PT170", "Professional Basketball Games (Sec. 125)", "15"],
+  ["PT180", "Jai-alai and Race Tracks (Sec. 125)", "30"],
+  ["PT105", "Banks/NBFI quasi-banking — lending, maturity ≤ 5 years (Sec. 121)", "5"],
+  ["PT101", "Banks/NBFI quasi-banking — lending, maturity > 5 years (Sec. 121)", "1"],
+  ["PT102", "Banks/NBFI — dividends, equity shares & net income of subsidiaries (Sec. 121)", "0"],
+  ["PT103", "Banks/NBFI — royalties, rentals & other gross income (Sec. 121)", "7"],
+  ["PT104", "Banks/NBFI — net trading gains on FX, securities, derivatives (Sec. 121)", "7"],
+  ["PT113", "Other NBFI (non quasi-banking) — lending, maturity ≤ 5 years (Sec. 122)", "5"],
+  ["PT114", "Other NBFI (non quasi-banking) — lending, maturity > 5 years (Sec. 122)", "1"],
+  ["PT115", "Other NBFI — all other items treated as gross income (Sec. 122)", "5"],
+  ["PT120", "Life Insurance Premiums (Sec. 123)", "2"],
+  ["PT130", "Agents of Foreign Insurance Companies — Insurance Agents (Sec. 124)", "4"],
+  ["PT132", "Owners of property insuring directly with foreign insurers (Sec. 124)", "5"],
 ];
 
 export function Guided2551Q({ tp, data, set, comp, onViewForm, onPrint }: GuidedProps<Comp2551Q>) {
@@ -73,7 +89,7 @@ export function Guided2551Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
       desc: "Pick the percentage-tax type (ATC) and enter your taxable sales/receipts. The rate auto-fills and tax is computed.",
       render: () => (
         <>
-          {rows.slice(0, 3).map((r, i) => (
+          {rows.slice(0, 6).map((r, i) => (
             <div className="g-q" key={i}>
               <label className="g-q-label">
                 <span className="g-q-item">Line {i + 1} · </span>Percentage tax type & taxable amount
@@ -126,11 +142,19 @@ export function Guided2551Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
           <F.Q item="Item 16" label="Tax Paid in Previously Filed Return (if amended)">
             <F.Money field="i16" />
           </F.Q>
-          <F.Q label="Surcharge">
+          <F.Q item="Item 17" label="Other Tax Credit/Payment (specify)">
+            <F.Txt field="i17label" ph="Specify (optional)" maxw={280} />
+            <div style={{ height: 8 }} />
+            <F.Money field="i17" />
+          </F.Q>
+          <F.Q item="Item 20" label="Surcharge">
             <F.Money field="i20" />
           </F.Q>
-          <F.Q label="Interest">
+          <F.Q item="Item 21" label="Interest">
             <F.Money field="i21" />
+          </F.Q>
+          <F.Q item="Item 22" label="Compromise">
+            <F.Money field="i22" />
           </F.Q>
           <F.Result
             rows={[
