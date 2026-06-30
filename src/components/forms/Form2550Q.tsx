@@ -1,7 +1,7 @@
 // Form2550Q.tsx — faithful 2550Q replica (Quarterly Value-Added Tax Return).
 // Ported from form-2550Q.jsx (pages 1, 2 & 3 — full official line items).
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp2550Q } from "../../lib/compute";
 import type { FilingData, FilingRow } from "../../types";
 import { num } from "../../lib/format";
@@ -15,136 +15,149 @@ import {
 } from "../formparts";
 import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 
+// ── form-wide context so the row helpers below can live at MODULE scope.
+//    Defining them inside the component gave each render a new component type,
+//    which remounted every <input> on each keystroke and dropped the cursor. ──
+interface Ctx2550Q {
+  data: FilingData;
+  set: SetFn;
+}
+const FormCtx = createContext<Ctx2550Q | null>(null);
+const useF = () => useContext(FormCtx) as Ctx2550Q;
+
+// single-amount line (label | amount). ro=computed.
+function L1({
+  no,
+  label,
+  sub,
+  field,
+  ro,
+  value,
+  strong,
+  bg,
+}: {
+  no: ReactNode;
+  label: ReactNode;
+  sub?: string;
+  field?: string;
+  ro?: boolean;
+  value?: number;
+  strong?: boolean;
+  bg?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br" style={{ width: 200 }}>
+        <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
+      </div>
+    </div>
+  );
+}
+
+// two-amount line: A (sales/purchases) | B (output/input tax)
+function L2({
+  no,
+  label,
+  a,
+  b,
+  aRo,
+  aVal,
+  bRo,
+  bVal,
+  strong,
+  bg,
+  bBlank,
+  aGrey,
+}: {
+  no: ReactNode;
+  label: ReactNode;
+  a?: string;
+  b?: string;
+  aRo?: boolean;
+  aVal?: number;
+  bRo?: boolean;
+  bVal?: number;
+  strong?: boolean;
+  bg?: boolean;
+  bBlank?: boolean;
+  aGrey?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
+        {label}
+      </div>
+      <div className="amtcell bl br">
+        {aGrey ? (
+          <div style={{ background: "#f3f4f6", height: "100%" }} />
+        ) : (
+          <BirAmt field={a} data={data} set={set} ro={aRo} value={aVal} />
+        )}
+      </div>
+      <div className="amtcell br">
+        {bBlank ? (
+          <div style={{ background: "#f3f4f6", height: "100%" }} />
+        ) : (
+          <BirAmt field={b} data={data} set={set} ro={bRo} value={bVal} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// input-tax-only line (B column), A column blank/grey
+function L1B({
+  no,
+  label,
+  sub,
+  field,
+  ro,
+  value,
+  strong,
+  bg,
+}: {
+  no: ReactNode;
+  label: ReactNode;
+  sub?: string;
+  field?: string;
+  ro?: boolean;
+  value?: number;
+  strong?: boolean;
+  bg?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br" style={{ background: "#f3f4f6" }}></div>
+      <div className="amtcell br">
+        <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
+      </div>
+    </div>
+  );
+}
+
 export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
   const pick = (f: string, v: string) => set(f, data[f] === v ? "" : v);
   const is = (f: string, v: string) => data[f] === v;
   const name = tp ? (tp.kind === "individual" ? tp.lastName : tp.regName) : "";
 
-  // single-amount line (label | amount). ro=computed.
-  function L1({
-    no,
-    label,
-    sub,
-    field,
-    ro,
-    value,
-    strong,
-    bg,
-  }: {
-    no: ReactNode;
-    label: ReactNode;
-    sub?: string;
-    field?: string;
-    ro?: boolean;
-    value?: number;
-    strong?: boolean;
-    bg?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br" style={{ width: 200 }}>
-          <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
-        </div>
-      </div>
-    );
-  }
-
-  // two-amount line: A (sales/purchases) | B (output/input tax)
-  function L2({
-    no,
-    label,
-    a,
-    b,
-    aRo,
-    aVal,
-    bRo,
-    bVal,
-    strong,
-    bg,
-    bBlank,
-    aGrey,
-  }: {
-    no: ReactNode;
-    label: ReactNode;
-    a?: string;
-    b?: string;
-    aRo?: boolean;
-    aVal?: number;
-    bRo?: boolean;
-    bVal?: number;
-    strong?: boolean;
-    bg?: boolean;
-    bBlank?: boolean;
-    aGrey?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
-          {label}
-        </div>
-        <div className="amtcell bl br">
-          {aGrey ? (
-            <div style={{ background: "#f3f4f6", height: "100%" }} />
-          ) : (
-            <BirAmt field={a} data={data} set={set} ro={aRo} value={aVal} />
-          )}
-        </div>
-        <div className="amtcell br">
-          {bBlank ? (
-            <div style={{ background: "#f3f4f6", height: "100%" }} />
-          ) : (
-            <BirAmt field={b} data={data} set={set} ro={bRo} value={bVal} />
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // input-tax-only line (B column), A column blank/grey
-  function L1B({
-    no,
-    label,
-    sub,
-    field,
-    ro,
-    value,
-    strong,
-    bg,
-  }: {
-    no: ReactNode;
-    label: ReactNode;
-    sub?: string;
-    field?: string;
-    ro?: boolean;
-    value?: number;
-    strong?: boolean;
-    bg?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br" style={{ background: "#f3f4f6" }}></div>
-        <div className="amtcell br">
-          <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
-        </div>
-      </div>
-    );
-  }
-
   const classification = (data.classification as string) || (tp && tp.classification) || "";
 
   return (
-    <>
+    <FormCtx.Provider value={{ data, set }}>
       {/* ============ PAGE 1 ============ */}
       <div className="bir-sheet">
         <BirHeader
@@ -508,7 +521,7 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
           Input Tax (Item 60).
         </div>
       </div>
-    </>
+    </FormCtx.Provider>
   );
 }
 

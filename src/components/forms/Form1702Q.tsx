@@ -1,11 +1,56 @@
 // Form1702Q.tsx — faithful 1702Q replica (pages 1 & 2).
 // Ported from form-1702Q.jsx.
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1702Q } from "../../lib/compute";
 import type { FormProps } from "../formProps";
+import type { FilingData } from "../../types";
 import { BirHeader, PartBand, PaymentDetails } from "../formparts";
-import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
+
+// ── form-wide context so the row helper below can live at MODULE scope.
+//    Defining it inside the component gave each render a new component type,
+//    which remounted every <input> on each keystroke and dropped the cursor. ──
+interface Ctx1702Q {
+  data: FilingData;
+  set: SetFn;
+}
+const FormCtx = createContext<Ctx1702Q | null>(null);
+const useF = () => useContext(FormCtx) as Ctx1702Q;
+
+function L1({
+  no,
+  label,
+  sub,
+  field,
+  ro,
+  value,
+  strong,
+  bg,
+}: {
+  no?: ReactNode;
+  label: ReactNode;
+  sub?: string;
+  field?: string;
+  ro?: boolean;
+  value?: number;
+  strong?: boolean;
+  bg?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br" style={{ width: 220 }}>
+        <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
+      </div>
+    </div>
+  );
+}
 
 export function Form1702Q({ tp, data, set, comp }: FormProps<Comp1702Q>) {
   const pick = (f: string, v: string) => set(f, data[f] === v ? "" : v);
@@ -16,41 +61,8 @@ export function Form1702Q({ tp, data, set, comp }: FormProps<Comp1702Q>) {
       : tp.regName
     : "";
 
-  function L1({
-    no,
-    label,
-    sub,
-    field,
-    ro,
-    value,
-    strong,
-    bg,
-  }: {
-    no?: ReactNode;
-    label: ReactNode;
-    sub?: string;
-    field?: string;
-    ro?: boolean;
-    value?: number;
-    strong?: boolean;
-    bg?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br" style={{ width: 220 }}>
-          <BirAmt field={field} data={data} set={set} ro={ro} value={value} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <>
+    <FormCtx.Provider value={{ data, set }}>
       {/* PAGE 1 */}
       <div className="bir-sheet">
         <BirHeader
@@ -347,6 +359,6 @@ export function Form1702Q({ tp, data, set, comp }: FormProps<Comp1702Q>) {
           taxable income) or the 2% MCIT on gross income.
         </div>
       </div>
-    </>
+    </FormCtx.Provider>
   );
 }

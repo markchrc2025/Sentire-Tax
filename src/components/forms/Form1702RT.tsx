@@ -2,17 +2,64 @@
 // Ported from form-1702RT.jsx.
 // Annual ITR for Corporations/Partnerships — Regular Income Tax Rate (MCIT-aware).
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Comp1702RT } from "../../lib/compute";
 import type { FormProps } from "../formProps";
+import type { FilingData } from "../../types";
 import { BirHeader, PartBand, PaymentDetails } from "../formparts";
-import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal } from "../formkit";
+import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 
 function fmtIncDate(iso?: string): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return m + "/" + d + "/" + y;
+}
+
+// ── form-wide context so the row helper below can live at MODULE scope.
+//    Defining L1 inside the component gave each render a new component type,
+//    which remounted every <input> on each keystroke and dropped the cursor. ──
+interface Ctx1702RT {
+  data: FilingData;
+  set: SetFn;
+}
+const FormCtx = createContext<Ctx1702RT | null>(null);
+const useF = () => useContext(FormCtx) as Ctx1702RT;
+
+function L1({
+  no,
+  label,
+  sub,
+  field,
+  ro,
+  value,
+  strong,
+  bg,
+  dim,
+}: {
+  no?: ReactNode;
+  label: ReactNode;
+  sub?: string;
+  field?: string;
+  ro?: boolean;
+  value?: number;
+  strong?: boolean;
+  bg?: boolean;
+  dim?: boolean;
+}) {
+  const { data, set } = useF();
+  return (
+    <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
+      <div className="num">{no}</div>
+      <div className="desc" style={{ fontWeight: strong ? 700 : 400, opacity: dim ? 0.5 : 1 }}>
+        {label}
+        {sub && <small> {sub}</small>}
+      </div>
+      <div className="amtcell bl br" style={{ width: 220 }}>
+        <BirAmt field={field} data={data} set={set} ro={ro} value={value} dim={dim} />
+      </div>
+    </div>
+  );
 }
 
 export function Form1702RT({ tp, data, set, comp }: FormProps<Comp1702RT>) {
@@ -25,43 +72,8 @@ export function Form1702RT({ tp, data, set, comp }: FormProps<Comp1702RT>) {
     : "";
   const incDate = tp && tp.incorpDate ? fmtIncDate(tp.incorpDate) : "";
 
-  function L1({
-    no,
-    label,
-    sub,
-    field,
-    ro,
-    value,
-    strong,
-    bg,
-    dim,
-  }: {
-    no?: ReactNode;
-    label: ReactNode;
-    sub?: string;
-    field?: string;
-    ro?: boolean;
-    value?: number;
-    strong?: boolean;
-    bg?: boolean;
-    dim?: boolean;
-  }) {
-    return (
-      <div className="bir-line bt" style={bg ? { background: "var(--shade2)" } : undefined}>
-        <div className="num">{no}</div>
-        <div className="desc" style={{ fontWeight: strong ? 700 : 400, opacity: dim ? 0.5 : 1 }}>
-          {label}
-          {sub && <small> {sub}</small>}
-        </div>
-        <div className="amtcell bl br" style={{ width: 220 }}>
-          <BirAmt field={field} data={data} set={set} ro={ro} value={value} dim={dim} />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <>
+    <FormCtx.Provider value={{ data, set }}>
       {/* PAGE 1 */}
       <div className="bir-sheet">
         <BirHeader
@@ -392,6 +404,6 @@ export function Form1702RT({ tp, data, set, comp }: FormProps<Comp1702RT>) {
           excluding land). Tax due is the higher of the normal tax or the 2% MCIT.
         </div>
       </div>
-    </>
+    </FormCtx.Provider>
   );
 }
