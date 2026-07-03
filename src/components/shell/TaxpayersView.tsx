@@ -192,7 +192,14 @@ function TaxpayerEditor({
       if (x.rdo) n.rdo = x.rdo;
       if (x.address) n.address = x.address;
       if (x.zip) n.zip = x.zip;
-      if (x.taxTypes && x.taxTypes.length) n.taxTypes = x.taxTypes;
+      // ADD the tax types read from the COR to any already-entered rows
+      // (deduped by type+form) rather than overwriting the user's work.
+      if (x.taxTypes && x.taxTypes.length) {
+        const existing = o.taxTypes || [];
+        const key = (t: TaxType) => (t.type + "|" + t.form).toUpperCase();
+        const have = new Set(existing.map(key));
+        n.taxTypes = [...existing, ...x.taxTypes.filter((t) => !have.has(key(t)))];
+      }
       return n;
     });
     setExtracted(null);
@@ -480,10 +487,13 @@ function TaxpayerEditor({
   );
 }
 
-/** Human-readable summary of the fields OCR read from a COR, for the review panel. */
+/** Human-readable summary of the fields OCR read from a COR, for the review
+ *  panel. Every field that Apply writes must appear here — this panel is the
+ *  user's approval gate. */
 function extractSummary(x: ExtractedCor): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [];
-  const name = x.regName || [x.lastName, x.firstName].filter(Boolean).join(", ");
+  const name =
+    x.regName || [x.lastName, [x.firstName, x.middleName].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   if (name) rows.push({ label: "Name", value: name });
   if (x.tradeName) rows.push({ label: "Trade Name", value: x.tradeName });
   if (x.tin) rows.push({ label: "TIN", value: formatTin(x.tin) + (x.branch ? " · " + x.branch : "") });
@@ -492,7 +502,9 @@ function extractSummary(x: ExtractedCor): Array<{ label: string; value: string }
   if (x.taxTypes?.length) {
     rows.push({
       label: `Tax Types (${x.taxTypes.length})`,
-      value: x.taxTypes.map((t) => t.type + (t.form ? ` (${t.form})` : "")).join(", "),
+      value: x.taxTypes
+        .map((t) => t.type + (t.form || t.frequency ? ` (${[t.form, t.frequency].filter(Boolean).join(", ")})` : ""))
+        .join(" · "),
     });
   }
   return rows;
