@@ -75,7 +75,10 @@ const TYPE_ANCHORS: Array<{ src: string; type: string; individual?: boolean }> =
   { src: String.raw`INCOME[\s|]{0,4}TAX`, type: "Income Tax" },
 ];
 const FREQ_SRC = String.raw`\b(ANNUALLY|QUARTERLY|MONTHLY)\b`;
-const DATE_SRC = String.raw`\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:T(?:EMBER)?)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s*(\d{1,2})\s*,?\s*(\d{4})\b`;
+// Day/year separator tolerates OCR's "," or "." ("February 3. 2022"); the year
+// is constrained to 19xx/20xx so a stray form code (e.g. "0605") after a due
+// date ("...November 15 0605") can't be consumed as the year.
+const DATE_SRC = String.raw`\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:T(?:EMBER)?)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\s*(\d{1,2})\s*[.,]?\s*((?:19|20)\d{2})\b`;
 const MONTH_NUM: Record<string, string> = {
   JAN: "01", FEB: "02", MAR: "03", APR: "04", MAY: "05", JUN: "06",
   JUL: "07", AUG: "08", SEP: "09", OCT: "10", NOV: "11", DEC: "12",
@@ -232,26 +235,30 @@ export function parseCorText(raw: string): ExtractedCor {
     }
   }
 
-  // --- Trade name — anchored on "TRADE NAME 1" (Business Information) ---
-  const tnIdx = lines.findIndex((l) => /TRADE\s*NAME/.test(l));
-  if (tnIdx >= 0) {
-    const label = lines[tnIdx].match(/TRADE\s*NAME\s*\d*\s*/);
-    let cand = label ? cleanTradeName(lines[tnIdx].slice((label.index ?? 0) + label[0].length)) : "";
-    if (!cand) {
-      // Value wrapped to a following line — skip PSIC/CATEGORY column noise.
-      for (let j = tnIdx + 1; j < Math.min(tnIdx + 5, lines.length); j++) {
-        const l = lines[j];
-        if (/LINE\s*OF\s*BUSINESS/.test(l)) break;
-        if (/^[({[]?\s*PSIC/.test(l) || /^\d{4,5}\s*-/.test(l)) continue;
-        if (/CATEGORY|REGISTRATION\s*DATE/.test(l) || /^(PRIMARY|SECONDARY)\b/.test(l)) continue;
-        const c = cleanTradeName(l);
-        if (c) {
-          cand = c;
-          break;
-        }
+  // --- Trade name (Business Information Details) ---
+  // On real scans OCR frequently loses EITHER the "TRADE NAME 1" label (leaving
+  // the value on a bare line) OR the value itself (leaving only the label +
+  // registration date). So read it positionally: scan the Business Information
+  // section for the first legible value line, stripping any surviving
+  // "TRADE NAME N" / (PSIC) label, and STOP at the PSIC code / Line of Business
+  // so a lost value never captures the line-of-business text below it.
+  const biIdx = lines.findIndex((l) => /BUSINESS\s*INFORMATION/.test(l));
+  const tnIdx = lines.findIndex((l) => /TRA[DC]E\s*NA[MN]E/.test(l));
+  const scanFrom = biIdx >= 0 ? biIdx + 1 : tnIdx;
+  if (scanFrom >= 0) {
+    for (let j = scanFrom; j < lines.length; j++) {
+      const body = lines[j].replace(/^\|?\s*TRA[DC]E\s*NA[MN]E\s*\d*\s*/i, "");
+      if (/^[({[]?\s*\d{4,5}\s*[-–]/.test(body)) break; // PSIC code cell → past the value
+      if (/LINE\s*OF\s*BUSINESS|REMINDERS|TAXPAYER\s*TYPE/i.test(lines[j])) break;
+      if (/BUSINESS\s*INFORMATION/i.test(lines[j])) continue;
+      if (/^[_\s]*(CATEGORY|REGISTRATION\s*DATE)/i.test(body)) continue;
+      if (/^[({[]?\s*PSIC\s*[)}\]]?\s*$/i.test(body)) continue; // lone (PSIC) sub-label
+      const c = cleanTradeName(body);
+      if (c && c.replace(/[^A-Z]/gi, "").length >= 3) {
+        out.tradeName = c;
+        break;
       }
     }
-    if (cand) out.tradeName = cand;
   }
 
   // --- Registered address + ZIP ---
