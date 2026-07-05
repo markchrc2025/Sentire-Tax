@@ -166,6 +166,73 @@ describe("parseCorText — real browser pipeline, MCRC (value-loss cases)", () =
   });
 });
 
+// Real browser-pipeline OCR — NCV Rice Trading. The trade-name LABEL survives
+// ("TRADE NAME 1 | NCV RICE TRADING") but the CATEGORY|REGISTRATION-DATE header
+// row above it OCR'd to caps garble ("TT camcoAv | recstRaToNDATE"), which a
+// positional scan would wrongly grab. Tier 1 (labelled value) must win.
+const NCV = `BIR FORM aN
+2303 - renga dhe
+KAGAWARANNG PANANAL API
+REVISED: APRIL 2019 KAW AN NG RENTAS (INTERNAS
+- REVENUE oro EAST NCR
+REVENUE DISTRIC 0, 03k - CAINTA-TAYTAY
+hl OCN: 046RC20220000003363
+Cate CCN Generated: May 27, 2022
+CERTIFICATE OF REGISTRATION
+TiN & BRANCH CODE NAME QF TAXPAYER TIN ISSUANCE DATE
+471-522-378-00000 MARTIN, VANITY ALLEN RODRIGUEZ July 6, 2015
+REGISTERING OFFICE [xT Head gtfice [ {Baer 7
+REGISTERED ADDRESS
+BLK 10 LOT 1 OPAL STREET FRANCESCA HOMES SAN ISIDRO 1900 CAINTA RIZAL PHILIPPINES |
+TAX TYPES FORM FILING FILING FILING DUE DATE
+TYPES | START DATE FREQUENCY
+On or before April 15 of each
+INDIVIDUAL INCOME | 701117 | January 1, ANNUALLY yaar Govering income fof the
+TAX ata 2023
+preceding taxable year.
+1st Quarter-on or before MAY 15
+INDIVIDUAL INCOME 2nd Quarter-cn or before
+TAX 17010 | May27,2022 | QUARTERLY AUGUST 15 3rd Quartar-on or
+before November 15
+REGISTRATION FEE EX Januan 1. ANNUALLY On or batars the fast day of
+TAXPAYER TYPE/S SINGLE PROPRIETORSHIP ONLY (RESIDENT CITIZEN
+BUSINESS INFORMATION DETAILS
+TT camcoAv | recstRaToNDATE
+TRADE NAME 1 | NCV RICE TRADING
+47216-RETAIL SALE OF RICE, CORN
+AND OTHER CEREALS Primary
+RICE TRADING
+REMINDERS:
+5. required to file quarterly percentage tax return (BIR Form No. 2551Q) QUARTERLY.`;
+
+describe("parseCorText — real browser pipeline, NCV Rice Trading", () => {
+  const r = parseCorText(NCV);
+
+  it("reads TIN and RDO (RDO from the OCN — the header is garbled to '03k')", () => {
+    expect(r.tin).toBe("471522378");
+    expect(r.rdo).toBe("046");
+  });
+
+  it("splits the individual name into last / first / middle", () => {
+    expect(r.kind).toBe("individual");
+    expect(r.lastName).toBe("MARTIN");
+    expect(r.firstName).toBe("VANITY ALLEN");
+    expect(r.middleName).toBe("RODRIGUEZ");
+  });
+
+  it("reads the trade name from the labelled line, not the garbled header row", () => {
+    expect(r.tradeName).toBe("NCV RICE TRADING");
+  });
+
+  it("extracts the three tax-type rows", () => {
+    const keys = r.taxTypes.map((t) => `${t.type}|${t.form}|${t.frequency}`);
+    expect(keys).toContain("Income Tax|1701|Annually");
+    expect(keys).toContain("Income Tax|1701Q|Quarterly");
+    expect(keys).toContain("Registration Fee|0605|Annually");
+    expect(r.taxTypes.length).toBe(3);
+  });
+});
+
 describe("parseCorText — synthetic clean scan", () => {
   const CLEAN = `
 REVENUE DISTRICT OFFICE NO. 045 - MARIKINA
