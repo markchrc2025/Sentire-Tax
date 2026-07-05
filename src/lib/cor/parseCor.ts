@@ -236,27 +236,46 @@ export function parseCorText(raw: string): ExtractedCor {
   }
 
   // --- Trade name (Business Information Details) ---
-  // On real scans OCR frequently loses EITHER the "TRADE NAME 1" label (leaving
-  // the value on a bare line) OR the value itself (leaving only the label +
-  // registration date). So read it positionally: scan the Business Information
-  // section for the first legible value line, stripping any surviving
-  // "TRADE NAME N" / (PSIC) label, and STOP at the PSIC code / Line of Business
-  // so a lost value never captures the line-of-business text below it.
-  const biIdx = lines.findIndex((l) => /BUSINESS\s*INFORMATION/.test(l));
-  const tnIdx = lines.findIndex((l) => /TRA[DC]E\s*NA[MN]E/.test(l));
-  const scanFrom = biIdx >= 0 ? biIdx + 1 : tnIdx;
-  if (scanFrom >= 0) {
-    for (let j = scanFrom; j < lines.length; j++) {
-      const body = lines[j].replace(/^\|?\s*TRA[DC]E\s*NA[MN]E\s*\d*\s*/i, "");
-      if (/^[({[]?\s*\d{4,5}\s*[-–]/.test(body)) break; // PSIC code cell → past the value
-      if (/LINE\s*OF\s*BUSINESS|REMINDERS|TAXPAYER\s*TYPE/i.test(lines[j])) break;
-      if (/BUSINESS\s*INFORMATION/i.test(lines[j])) continue;
-      if (/^[_\s]*(CATEGORY|REGISTRATION\s*DATE)/i.test(body)) continue;
-      if (/^[({[]?\s*PSIC\s*[)}\]]?\s*$/i.test(body)) continue; // lone (PSIC) sub-label
-      const c = cleanTradeName(body);
-      if (c && c.replace(/[^A-Z]/gi, "").length >= 3) {
-        out.tradeName = c;
-        break;
+  // OCR damages this cell two different ways, so read it in two tiers:
+  //   Tier 1 — the "TRADE NAME 1" label survives with its value on the same
+  //     line ("TRADE NAME 1 | NCV RICE TRADING"): take the text after the label.
+  //     This is preferred because the CATEGORY|REGISTRATION-DATE header row
+  //     often OCRs to caps garble ("TT CAMCOAV | RECSTRATONDATE") that a
+  //     positional scan would otherwise mistake for the value.
+  //   Tier 2 — the label itself failed OCR (value on a bare line, e.g.
+  //     Nichievan): take the first data line in the section, AFTER the (possibly
+  //     garbled) column-header row and BEFORE the PSIC code, so a lost value is
+  //     left empty rather than capturing the header or the Line of Business.
+  const TN_LABEL = /TRA[DC]E\s*NA[MN]E\s*\d*/i;
+  for (let i = 0; i < lines.length; i++) {
+    if (!TN_LABEL.test(lines[i])) continue;
+    const c = cleanTradeName(lines[i].replace(TN_LABEL, ""));
+    if (c && c.replace(/[^A-Z]/gi, "").length >= 3) {
+      out.tradeName = c;
+      break;
+    }
+  }
+  if (!out.tradeName) {
+    const biIdx = lines.findIndex((l) => /BUSINESS\s*INFORMATION/.test(l));
+    if (biIdx >= 0) {
+      let skippedHeader = false;
+      for (let j = biIdx + 1; j < lines.length; j++) {
+        const body = lines[j].replace(TN_LABEL, "");
+        if (/^[({[]?\s*\d{4,5}\s*[-–]/.test(body)) break; // PSIC code cell → past the value
+        if (/LINE\s*OF\s*BUSINESS|REMINDERS|TAXPAYER\s*TYPE/i.test(lines[j])) break;
+        if (/^[({[]?\s*PSIC\s*[)}\]]?\s*$/i.test(body)) continue; // lone (PSIC) sub-label
+        // The first row after "BUSINESS INFORMATION DETAILS" is the
+        // CATEGORY | REGISTRATION DATE column header — skip it even when OCR
+        // garbled it beyond a clean keyword match.
+        if (!skippedHeader) {
+          skippedHeader = true;
+          continue;
+        }
+        const c = cleanTradeName(body);
+        if (c && c.replace(/[^A-Z]/gi, "").length >= 3) {
+          out.tradeName = c;
+          break;
+        }
       }
     }
   }
