@@ -635,22 +635,32 @@ flowchart TD
 
 ## 7. API Integration — Accounting Firm Portal
 
-This section frames the connector between the **BIR Form Generator** and the **Accounting Firm
-Portal** (whose design defines `Client`, `TaxComputation`, `TaxRule`, `SalesRecord`, `ExpenseRecord`
-and a REST/JSON API, per its NFR-09). The two systems are **complementary**:
+> **This section is a build contract.** The Accounting Firm Portal is being created **from scratch**;
+> this section **directs what the Portal must implement** to serve the BIR Form Generator. Treat the
+> data model (§7.3) and endpoints (§7.6–7.7) as the Portal's required specification for this integration.
 
-- The **Portal** is the **system of record** for clients and their financial data & tax computations.
-- The **BIR Form Generator** is the **specialist producer** of official BIR forms and eBIRForms XML.
+The two systems are complementary:
+
+- The **Portal** is the **system of record** for clients and their **per-transaction** financial data.
+  It must **classify every transaction for tax at capture time** (§7.3) and expose **aggregation
+  endpoints** (§7.6) that roll those transactions up into the exact shapes the BIR forms need.
+- The **BIR Form Generator** is the **specialist producer** of official BIR forms and eBIRForms XML. It
+  owns the **taxpayer registration** (tax types / percentage-tax **ATC & rate**, sourced from the COR),
+  the **period-to-period carry-overs** (excess input VAT, capital-goods amortization, prior payments),
+  and it **pushes** finished filings — plus an **Input Tax Asset** figure — back to the Portal (§7.7).
 
 ### 7.1 Responsibility Split
 
 | Capability | Owner |
 |---|---|
-| Client profiles, sales/expenses, computed figures | **Accounting Firm Portal** |
-| Configurable tax rules & brackets | **Accounting Firm Portal** |
+| Client profiles | **Accounting Firm Portal** |
+| **Per-transaction income & purchase records + tax classification** (§7.3) | **Accounting Firm Portal** |
+| **Aggregation endpoints** — VAT summary, percentage receipts, income-tax summary (§7.6) | **Accounting Firm Portal** |
+| Filing artifact **and Input Tax Asset** booking on the client record (§7.7) | **Portal** (values pushed by the Generator) |
 | BIR form layout, field-level filling, form-specific rules | **BIR Form Generator** |
+| **Taxpayer registration** — tax types + **percentage-tax ATC & rate** (from the COR) | **BIR Form Generator** |
+| **Period carry-overs** — excess input VAT (Input Tax Asset), capital-goods >₱1M amortization | **BIR Form Generator** |
 | eBIRForms XML export & A4 PDF | **BIR Form Generator** |
-| Filing status & artifact (XML/PDF) storage on the client record | **Portal** (pushed by the Generator) |
 
 ### 7.2 Integration Architecture & Trust Boundary
 
@@ -669,10 +679,105 @@ flowchart LR
   scoped to the firm; the Portal enforces which **clients** are visible (its assigned-clients RBAC).
 - **Auth to the connector:** the browser presents its Supabase session JWT; the Edge Function verifies
   it before calling the Portal, so only the signed-in practitioner can trigger a sync.
-- **Scopes requested:** `clients:read`, `tax-computations:read`, `sales:read`, `expenses:read`,
-  `bir-filings:write`.
+- **Scopes requested:** `clients:read`, `tax-computations:read`, `vat-summary:read`,
+  `percentage-tax-summary:read`, `transactions:read`, `bir-filings:read`, `bir-filings:write`,
+  `input-tax-asset:write`.
 
-### 7.3 Data Mapping
+### 7.3 Portal Data Model — What the Portal Must Build
+
+To serve **VAT (2550Q)** and **Percentage Tax (2551Q)**, aggregate totals are not enough — the Portal
+must **classify each transaction for tax at the moment it is recorded**. The Portal must implement two
+record types (extending its `SalesRecord` / `ExpenseRecord`) with the BIR-specific fields below. All
+amounts are **exclusive of VAT** (net); VAT is carried separately.
+
+```mermaid
+classDiagram
+    class IncomeTransaction {
+        +UUID id
+        +UUID clientId
+        +Date txnDate
+        +String referenceNo
+        +String customer
+        +Decimal netAmount
+        +VatClass vatClass
+        +Boolean saleToGovernment
+        +Decimal outputVAT
+        +Decimal creditableVATWithheld5pct
+        +String atc
+    }
+    class PurchaseTransaction {
+        +UUID id
+        +UUID clientId
+        +Date txnDate
+        +String referenceNo
+        +String vendor
+        +Decimal netAmount
+        +InputVATCategory inputVATCategory
+        +Decimal inputVAT
+        +Boolean isCapitalGood
+        +Decimal capitalGoodAcquisitionCost
+        +Integer estimatedUsefulLifeMonths
+        +InputTaxAttribution inputTaxAttribution
+        +Boolean deductible
+    }
+    class VatClass {
+        <<enum>>
+        VATABLE_12
+        ZERO_RATED
+        EXEMPT
+        NON_VAT
+    }
+    class InputVATCategory {
+        <<enum>>
+        DOMESTIC_PURCHASES
+        SERVICES_NONRESIDENT
+        IMPORTATION_GOODS
+        OTHERS_WITH_INPUT_TAX
+        DOMESTIC_NO_INPUT_TAX
+        VAT_EXEMPT_IMPORTATION
+        CAPITAL_GOODS_GT_1M
+    }
+    class InputTaxAttribution {
+        <<enum>>
+        VATABLE
+        EXEMPT
+        MIXED
+    }
+    IncomeTransaction --> VatClass
+    PurchaseTransaction --> InputVATCategory
+    PurchaseTransaction --> InputTaxAttribution
+```
+
+**Field semantics & the actual April-2024 2550Q line each fills** (Items 44–49 follow the real form:
+44 Domestic Purchases · 45 Services by Non-residents · 46 Importation · 47 Others · 48 Domestic
+Purchases with No Input Tax · 49 VAT-Exempt Importations — capital goods >₱1M are **not** a current-
+purchase line, they are amortized via Schedule 1):
+
+| Field | Applies to | Fills / drives (2550Q unless noted) |
+|---|---|---|
+| `netAmount` (income) + `vatClass = VATABLE_12` | VAT clients | **Item 31A** vatable sales; the Generator derives **Item 31B** = 12% × net |
+| `vatClass = ZERO_RATED` | VAT clients | **Item 32A** zero-rated sales |
+| `vatClass = EXEMPT` | VAT clients | **Item 33A** exempt sales |
+| `vatClass = NON_VAT` | percentage clients | **2551Q** taxable gross receipts (ATC & rate resolved by the Generator) |
+| `saleToGovernment` (overlay — the sale is **also** `VATABLE_12`) + `creditableVATWithheld5pct` | VAT clients | the 5% withheld → part of **Item 16**; the sale itself sits in Item 31 |
+| `inputVATCategory = DOMESTIC_PURCHASES` (incl. capital goods ≤₱1M, claimed in full) | purchases | **Item 44A/B** |
+| `inputVATCategory = SERVICES_NONRESIDENT` | purchases | **Item 45A/B** |
+| `inputVATCategory = IMPORTATION_GOODS` | purchases | **Item 46A/B** |
+| `inputVATCategory = OTHERS_WITH_INPUT_TAX` | purchases | **Item 47A/B** |
+| `inputVATCategory = DOMESTIC_NO_INPUT_TAX` | purchases | **Item 48A** (amount only) |
+| `inputVATCategory = VAT_EXEMPT_IMPORTATION` | purchases | **Item 49A** (amount only) |
+| `inputVATCategory = CAPITAL_GOODS_GT_1M` (+ `capitalGoodAcquisitionCost`, `estimatedUsefulLifeMonths`) | purchases | **Schedule 1** amortization only (Items 39 / 52); the current-period claimable portion is Generator-computed |
+| `inputTaxAttribution = EXEMPT` | purchases | directly-attributable exempt input tax → **Schedule 2 / Item 53** |
+| `inputTaxAttribution = MIXED` | purchases | common input tax → the Generator apportions the ratable exempt share (**Schedule 2**) |
+
+> **Regime note.** A client is **either** VAT-registered **or** percentage-tax (non-VAT) — determined
+> by its COR tax types (held in the Generator). For **VAT** clients, income transactions carry a real
+> `vatClass`; for **percentage** clients, income transactions are `NON_VAT` and only the **gross
+> receipts total** matters (the ATC & rate are supplied by the Generator's taxpayer profile, not the
+> Portal). The `atc` field on `IncomeTransaction` is optional — populate it only if a client has
+> multiple percentage-tax streams.
+
+### 7.4 Portal → Generator: Client & Registration Mapping
 
 **Portal `Client` → BIR `Taxpayer`:**
 
@@ -681,12 +786,19 @@ flowchart LR
 | `businessName` | `regName` (non-individual) / `tradeName` | Individual name is split when available. |
 | `tin` | `tin` (+ `branch`) | Normalized to 9 digits; branch default `00000`. |
 | `address` | `address` (+ `zip`) | ZIP parsed out when present. |
-| `taxType` | seeds `taxTypes[]` + suggests the **form** | e.g. *Percentage Tax* → 2551Q; *Income Tax* → 1701/1701Q/1702. |
+| `taxType` | seeds `taxTypes[]` + suggests the **form** | e.g. *Percentage Tax* → 2551Q; *VAT* → 2550Q; *Income Tax* → 1701 / 1701A / 1701Q / 1702RT / 1702Q. |
 | `fiscalYearStart` | period basis | Drives calendar vs fiscal handling. |
-| `currency` | display | PHP assumed for BIR forms. |
 | `id` | `externalClientId` (link) | Stored on the taxpayer/filing for push-back. |
 
-**Portal `TaxComputation` → BIR `FilingData` (per form):**
+> **The percentage-tax ATC & rate are NOT taken from the Portal.** The **ATC** is fixed per client by the
+> COR and lives on the Generator's **Taxpayer profile** (`taxTypes`); the Generator's taxpayer editor
+> should capture it (default **PT010**, Sec. 116). The **rate is not a stored value** — the Generator
+> resolves it from a built-in **ATC → rate catalog keyed by filing period**, because the Sec. 116 rate is
+> period-dependent (**1%** for 1 Jul 2020 – 30 Jun 2023 under CREATE, otherwise **3%**). So the Portal
+> supplies only the *amount* (gross receipts); the Generator supplies the *ATC* and the *period-correct
+> rate*.
+
+**Portal `TaxComputation` → BIR `FilingData` (income-tax summary lines):**
 
 | Portal `TaxComputation` | BIR field (conceptual) |
 |---|---|
@@ -694,97 +806,176 @@ flowchart LR
 | `totalDeductions` | Itemized deductions or OSD base |
 | `taxableIncome` | Taxable income line |
 | `grossTaxDue` | Tax due |
-| `taxCredits` | Creditable withholding (ties to 2307) / prior payments |
+| `taxCredits` | Creditable withholding / prior payments |
 | `netTaxPayable` | Total amount payable / (overpayment) |
 | `periodType` + `periodStart/End` | Filing `period` (year / quarter) |
-| `taxRuleId` → `TaxRule.method` | Selects the compute method (graduated / flat / percentage) for cross-checking |
 
-> The Generator treats imported figures as **inputs to review**: they pre-fill `FilingData`, then the
-> pure engine recomputes so the Portal's numbers and the BIR form's numbers are reconciled, not blindly
-> trusted.
+> The Generator treats all imported figures as **inputs to review**: they pre-fill `FilingData`, then
+> the pure engine recomputes so the Portal's numbers and the BIR form's numbers are reconciled, not
+> blindly trusted.
 
-### 7.4 Data Required to Fill Each Form (Inbound Data Contract)
+### 7.5 Data Required to Fill Each Form (Inbound Data Contract)
 
-The Portal's single aggregate `TaxComputation` (grossIncome, totalDeductions, taxableIncome,
-grossTaxDue, taxCredits, netTaxPayable) is enough to pre-fill the **summary lines** of the income-tax
-and percentage-tax returns. Several forms, however, need **breakdown detail** the aggregate does not
-carry, and two forms (2307, 2316) need **transaction-/payroll-level** data that is not part of a tax
-computation at all. This subsection states, per form, exactly what the Generator needs and where each
-item comes from — so the Portal API can be scoped to actually fill the forms, not just their totals.
+This subsection states, per form, exactly what the Generator needs and where each item comes from — so
+the Portal API is scoped to actually fill the forms, not just their totals.
 
-**Source legend** — **T** Taxpayer profile (already synced) · **A** Portal aggregate `TaxComputation`
-· **L** Portal **tax-classified line data** (sales/purchases; extended endpoints in §7.5) · **W** Portal
-**withholding records** · **P** **Payroll system** (e.g. Sentire Payroll) · **M** manual / firm input.
+**Source legend** — **T** Taxpayer profile / registration (Generator; from the COR) · **A** Portal
+aggregate `TaxComputation` (income-tax summary) · **L** Portal **per-transaction classified data**
+(§7.3, via the aggregation endpoints in §7.6) · **G** Generator-owned carry-over state · **M** manual /
+firm input.
 
 | Form | Required input data (beyond taxpayer background = **T**) | Source |
 |---|---|---|
-| **1701** (annual, individuals — mixed) | Gross sales/receipts & returns; cost of sales/services; ordinary itemized deductions **or** OSD (method = **M**); non-operating/other income; exempt & special/preferential-rate income + share to gov't; **NOLCO** carry-over; creditable withholding (2307); prior-quarter (1701Q) payments; foreign tax credits; penalties; spouse income (if joint). | A + L + W + **M** (NOLCO, foreign credits, penalties, method) |
-| **1701A** (annual — purely business/profession) | Method **8% flat vs graduated+OSD** (**M**); gross sales/receipts; cost & allowable deductions (if graduated); creditable withholding; prior payments. | A + L + W + **M** |
-| **1701Q** (quarterly, individuals) | Quarter **and cumulative** gross sales/receipts; cost; deductions/OSD; creditable withholding (this + prior quarters); tax paid prior quarters; 8% option (**M**). | A(per period) + L + W + **M** |
-| **1702RT** (annual, corporations — regular) | Sales/revenues; cost of sales; gross income; non-operating income; itemized deductions **or** OSD; **gross income for MCIT (2%)**; creditable withholding; prior payments; **excess MCIT** prior years; **NOLCO**. | A + L + W + **M** (MCIT excess, NOLCO) |
-| **1702Q** (quarterly, corporations) | Quarterly + cumulative sales, cost, deductions, taxable income; **MCIT quarterly gross income**; creditable withholding; prior payments. | A(per period) + L + W + **M** |
-| **2550Q** (quarterly VAT) ⚠️ | **Sales classified by VAT status**: vatable (12%), zero-rated, exempt, sales to gov't → output VAT; **purchases classified by input-VAT category**: capital goods (≤/> ₱1M), domestic goods/services, importation, services by non-residents → input VAT; input tax carried over; creditable VAT withheld (2307); advance payments. | **L (VAT-classified sales *and* purchases)** + W + M — *aggregate alone is insufficient* |
-| **2551Q** (quarterly percentage tax) ⚠️ | **Per-ATC lines**: taxable gross receipts + ATC code (+ rate) per percentage-tax category; creditable percentage tax withheld (2307); prior payments; penalties. | **L (receipts classified by percentage-tax ATC)** + W + M |
-| **2307** (creditable withholding cert.) ⚠️ | Payee & payor identity (name, TIN, address); **income payments per ATC per month** of the quarter; tax withheld per ATC. | **W (withholding transaction records)** + T + M — *not derivable from sales/expenses* |
-| **2316** (compensation cert.) ⚠️ | Employer & employee details; gross compensation; **non-taxable** (13th-month, de minimis, SSS/PhilHealth/Pag-IBIG); taxable compensation; tax withheld; premiums; prior-employer figures. | **P (payroll system — Sentire Payroll)** + M — *not in the accounting Portal's sales/expenses* |
+| **1701** (annual, individuals — mixed) | Gross sales/receipts & returns; cost of sales/services; itemized deductions **or** OSD (method **M**); other income; exempt & special-rate income; **NOLCO**; creditable withholding; prior-quarter payments; foreign credits; penalties; spouse income. | A + L + **M** (NOLCO, foreign credits, penalties, method) |
+| **1701A** (annual — purely business/profession) | Method **8% vs graduated+OSD** (**M**); gross sales/receipts; cost & allowable deductions; creditable withholding; prior payments. | A + L + **M** |
+| **1701Q** (quarterly, individuals) | Quarter **and cumulative** gross sales/receipts; cost; deductions/OSD; creditable withholding; prior-quarter payments; 8% option (**M**). | A + L + **M** |
+| **1702RT** (annual, corporations — regular) | Sales; cost of sales; gross income; other income; itemized deductions **or** OSD; **gross income for MCIT (2%)**; creditable withholding; prior payments; **excess MCIT**; **NOLCO**. | A + L + **M** (MCIT excess, NOLCO) |
+| **1702Q** (quarterly, corporations) | Quarterly + cumulative sales, cost, deductions, taxable income; **MCIT quarterly gross income**; creditable withholding; prior payments. | A + L + **M** |
+| **2550Q** (quarterly VAT) ✅ *resolved* | **Sales by VAT class** (vatable → output VAT, zero-rated, exempt; government sales are vatable + 5% withheld); **purchases** by the real Items 44–49 categories with input VAT; capital-goods >₱1M amortization inputs (Schedule 1); directly-attributable / common exempt input tax (Schedule 2); creditable VAT withheld & advance payments (Schedules 3/4). Input-tax **carry-over** and amortization are Generator-owned. | **L** (`vat-summary`, §7.6) + **G** (carry-over, amortization) + **M** (see manual lines below) |
+| **2551Q** (quarterly percentage tax) ✅ *resolved* | **Taxable gross receipts** for the quarter (per ATC if multiple); the **ATC** (from **T**) and the **period-correct rate** (Generator catalog); tax paid in a previously-filed **amended** return; other credits; penalties. | **L** (`percentage-tax-summary`, §7.6) + **T** (ATC) + **M** (credits, penalties) |
+| **2307** (creditable withholding cert.) — *standalone* | Payee & payor identity; income payments per ATC per month; tax withheld per ATC. | **Out of API scope** — see §7.10 |
+| **2316** (compensation cert.) — *standalone* | Employer & employee details; gross/non-taxable/taxable compensation; tax withheld; premiums; prior employer. | **Out of API scope** — see §7.10 |
 
-**Gap summary — what the current Portal `TaxComputation` cannot supply on its own:**
+**How the two resolved forms are covered — and which lines stay manual:**
 
-1. **VAT (2550Q)** and **Percentage Tax (2551Q)** need **tax-classified line data**, not a single gross
-   figure — sales split by VAT class / percentage-tax ATC, and purchases split by input-VAT category.
-   → The Portal must expose the extended line endpoints in §7.5.
-2. **2307** needs **withholding records** (income payments & tax withheld per ATC per month).
-3. **2316** needs **payroll data** — best served by integrating **Sentire Payroll**, not this Portal.
-4. **NOLCO, excess MCIT, foreign tax credits, penalties, and method elections** (8% vs graduated,
-   itemized vs OSD) are **firm decisions / carry-overs** that generally remain **manual inputs**, with
-   the Portal optionally storing prior-period values to auto-carry them forward.
+1. **2550Q (VAT)** — the **transaction-driven** lines come from `vat-summary`: output lines (Items
+   31–33) from `vatClass`; current-purchase input lines (Items 44–49) from `inputVATCategory`; Schedule 1
+   from `CAPITAL_GOODS_GT_1M`; Schedule 2 from `inputTaxAttribution`; Schedules 3/4 (creditable VAT
+   withheld, advance payments) from the roll-up. The Generator owns **Item 38 carry-over** and the
+   running **capital-goods amortization** and returns the **Input Tax Asset** (§7.7). The following
+   remain **manual (M)** — they are statutory/adjustment/amended-return fields the Portal does not track:
+   **Items 35 & 36** (output-VAT adjustments on un/recovered receivables), **40 41 42** (transitional /
+   presumptive / other input tax), **54** (VAT refund/TCC claimed), **55 56 58** (unpaid-payable & other
+   input-tax adjustments), **18 & 19** (VAT paid on prior/amended return, other credits), and **22–24**
+   (penalties).
+2. **2551Q (Percentage)** — `percentage-tax-summary` returns **gross receipts**; the **ATC** comes from
+   the taxpayer profile and the **rate** from the Generator's period-keyed catalog (§7.4). Manual (M):
+   **Item 15** creditable percentage tax withheld (until the 2307 enhancement, §7.10), **Item 16** tax
+   paid on an amended return, **Item 17** other credit, and **penalties**. Derived by the engine: Items
+   14, 18, 19, 23, 24.
+3. **Income-tax forms** — the `TaxComputation` fills summary lines; **NOLCO, excess MCIT, foreign
+   credits, penalties, prior payments, and method elections** remain **manual / carry-over** inputs.
 
-### 7.5 Endpoints Consumed (Portal → Generator)
+### 7.6 Endpoints the Portal Must Expose (Portal → Generator)
 
 Base: `{PORTAL_BASE}/api/v1` — all calls via the `portal-sync` Edge Function with an OAuth2 bearer token.
-The first three cover profile + summary; the rest supply the **breakdown detail** §7.4 requires.
 
 | Method & Path | Purpose | Fills |
 |---|---|---|
 | `GET /clients?assignedTo=me&query=` | List/select importable clients | Import picker |
-| `GET /clients/{clientId}` | Fetch one client profile | → Taxpayer (§7.3) |
-| `GET /clients/{clientId}/tax-computations?periodType=&periodStart=&periodEnd=` | Computed **summary** figures for a period | Income-tax / percentage summary lines |
-| `GET /clients/{clientId}/sales?from=&to=&classify=vat\|percentage` | **Tax-classified sales lines** (VAT status or percentage-tax ATC) | 2550Q sales block; 2551Q per-ATC lines; income-tax sales |
-| `GET /clients/{clientId}/purchases?from=&to=` | **Input-VAT-classified purchases** (capital / goods / services / importation) | 2550Q input-tax block; itemized deductions |
-| `GET /clients/{clientId}/expenses?from=&to=` | Deductible expense lines by category | Income-tax deduction schedules |
-| `GET /clients/{clientId}/withholding-certificates?type=2307&period=` | **Withholding records** (income payments & tax withheld per ATC) | 2307; creditable-withholding credit lines on other forms |
-| `GET {PAYROLL_BASE}/api/v1/employees/{id}/compensation-summary?year=` *(separate Sentire Payroll connector)* | Payroll compensation & tax withheld | 2316 |
+| `GET /clients/{clientId}` | One client profile | → Taxpayer (§7.4) |
+| `GET /clients/{clientId}/tax-computations?periodType=&periodStart=&periodEnd=` | Income-tax **summary** figures | 1701 / 1701A / 1701Q / 1702RT / 1702Q summary lines |
+| `GET /clients/{clientId}/vat-summary?year=&quarter=` | 2550Q roll-up of classified transactions | The transaction-driven 2550Q lines (see §7.5 for the manual ones) |
+| `GET /clients/{clientId}/percentage-tax-summary?year=&quarter=` | **2551Q gross receipts** (per ATC if any) | 2551Q Schedule 1 base |
+| `GET /clients/{clientId}/income-transactions?from=&to=` | Raw classified income rows (drill-down / audit) | line-level verification |
+| `GET /clients/{clientId}/purchase-transactions?from=&to=` | Raw classified purchase rows (drill-down / audit) | line-level verification |
 
-### 7.6 Endpoint Provided-To / Called-Back (Generator → Portal)
-
-| Method & Path | Purpose | Payload (summary) |
-|---|---|---|
-| `POST /clients/{clientId}/bir-filings` | Create the BIR filing artifact on the client | `{ form, periodType, periodStart, periodEnd, status, figures, xmlBase64, xmlFilename, pdfUrl }` |
-| `PUT /clients/{clientId}/bir-filings/{ref}` | Idempotent update (re-sync same period) | same shape; keyed by `client + form + period` |
-| `GET /clients/{clientId}/bir-filings` | Optional: reconcile what the Portal already has | list of prior artifacts |
-
-**Example push-back payload:**
+**`vat-summary` response** — keys map to the actual April-2024 2550Q lines shown in the comments. All
+`net` amounts are exclusive of VAT. Government sales are **not** a separate output line: they are
+included in `sales.vatable` and additionally carry a memo `creditableVATWithheld5pct` (→ Item 16):
 
 ```json
 {
-  "form": "2551Q",
+  "client": { "id": "cl_123", "tin": "471522378", "vatRegistered": true },
+  "period": { "year": 2026, "quarter": 1, "start": "2026-01-01", "end": "2026-03-31" },
+  "sales": {
+    "vatable":   { "net": 400000.00, "outputVAT": 48000.00 },   // Item 31 (incl. government sales)
+    "zeroRated": { "net": 0.00 },                                // Item 32
+    "exempt":    { "net": 0.00 },                                // Item 33
+    "governmentSalesMemo": { "net": 100000.00, "creditableVATWithheld5pct": 5000.00 }  // subset of vatable -> Item 16
+  },
+  "purchases": {
+    "domesticPurchases":   { "net": 300000.00, "inputVAT": 36000.00 },   // Item 44 (incl. capital goods <=P1M)
+    "servicesNonResident": { "net": 0.00, "inputVAT": 0.00 },            // Item 45
+    "importationGoods":    { "net": 0.00, "inputVAT": 0.00 },            // Item 46
+    "othersWithInputTax":  { "net": 0.00, "inputVAT": 0.00 },            // Item 47
+    "domesticNoInputTax":  { "net": 0.00 },                              // Item 48 (amount only)
+    "vatExemptImportation":{ "net": 0.00 },                              // Item 49 (amount only)
+    "capitalGoodsGT1M": {                                                // Schedule 1 ONLY (not Items 44-49)
+      "items": [ { "acquiredOn": "2026-02-10", "cost": 1500000.00, "inputVAT": 180000.00, "usefulLifeMonths": 60 } ]
+    }
+  },
+  "exemptInputTax": {
+    "directlyAttributable":     0.00,   // -> Schedule 2 (sch2_direct)
+    "commonNotDirectlyAttributable": 0.00   // Generator apportions the ratable exempt share -> Schedule 2
+  },
+  "otherCredits": {
+    "creditableVATWithheld": 5000.00,   // Item 16 / Schedule 3 (TOTAL, incl. the government 5% above)
+    "advanceVATPayments":    0.00       // Item 17 / Schedule 4
+  }
+}
+```
+
+> **Field → line notes.** `sales.vatable.outputVAT` is **advisory** — the Generator derives Item 31B as
+> `12% × net` and uses that. `otherCredits.creditableVATWithheld` is the **single total** for Item 16 and
+> already **includes** `governmentSalesMemo.creditableVATWithheld5pct` (no double count). `exemptInputTax`
+> returns the two Schedule-2 components (directly-attributable + the common pool) so the Generator can
+> compute the ratable exempt portion using total sales; it does **not** return a pre-apportioned figure.
+> The **per-row detail** of Schedules 3 & 4 (withholding-agent name, income payment, OR number, etc.) is
+> supporting detail only — the **totals above fill Items 16/17**; the row lists are entered manually or
+> added by a later extension, and are not required by this contract.
+
+**`percentage-tax-summary` response:**
+
+```json
+{
+  "client": { "id": "cl_123", "tin": "471522378", "vatRegistered": false },
+  "period": { "year": 2026, "quarter": 1, "start": "2026-01-01", "end": "2026-03-31" },
+  "grossReceipts": 500000.00,
+  "byAtc": [ { "atc": "PT010", "grossReceipts": 500000.00 } ]
+}
+```
+
+> `byAtc` is optional — the **ATC is authoritative on the Generator's taxpayer profile** (from the COR)
+> and the **rate is resolved by the Generator's period-keyed catalog** (§7.4). Populate `byAtc` only when
+> a client genuinely has multiple percentage-tax streams. Creditable percentage-tax-withheld (Item 15) is
+> **intentionally omitted** — it stays a manual field until the 2307 enhancement (§7.10).
+
+### 7.7 Endpoints the Portal Must Accept (Generator → Portal)
+
+| Method & Path | Purpose |
+|---|---|
+| `POST /clients/{clientId}/bir-filings` | Create the BIR filing artifact on the client (idempotent-keyed by `client + form + period`) |
+| `PUT /clients/{clientId}/bir-filings/{ref}` | Re-sync the same period (update in place) |
+| `POST /clients/{clientId}/input-tax-asset` | Book the **Input Tax Asset** the Generator carries forward (excess creditable input VAT + deferred capital-goods input tax) |
+| `GET /clients/{clientId}/bir-filings` | Optional: reconcile what the Portal already holds |
+
+**`bir-filings` push-back payload:**
+
+```json
+{
+  "form": "2550Q",
   "periodType": "quarter",
   "periodStart": "2026-01-01",
   "periodEnd": "2026-03-31",
   "status": "filed",
-  "figures": {
-    "grossReceipts": 500000.00,
-    "taxDue": 15000.00,
-    "creditableWithheld": 2000.00,
-    "amountPayable": 13000.00
-  },
-  "xmlFilename": "471522378000002551Q2026Q1.xml",
+  "figures": { "outputVAT": 48000.00, "allowableInputVAT": 60000.00, "netVATPayable": -12000.00, "amountPayable": 0.00 },
+  "xmlFilename": "471522378000002550Q2026Q1.xml",
   "xmlBase64": "<base64 of the eBIRForms XML>",
   "pdfUrl": "https://<signed-url-to-A4-pdf>"
 }
 ```
 
-### 7.7 Sequence — Import & Push-Back
+> The example is an **excess-input quarter**: input (60,000) exceeds output (48,000), so `netVATPayable`
+> is negative (−12,000) and nothing is payable — the 12,000 is carried forward and handed off below.
+
+**`input-tax-asset` handoff payload** — lets the Portal record the input-VAT the Generator carries to the
+next period as a balance-sheet **asset**. The carry-over is Generator-owned, but the Portal must know the
+amount to book it. Same quarter as the filing above (12,000 excess input VAT + 3,000 deferred
+capital-goods input tax = 15,000 total):
+
+```json
+{
+  "sourceForm": "2550Q",
+  "asOfPeriod": { "year": 2026, "quarter": 1 },
+  "excessInputTaxCarriedForward": 12000.00,
+  "deferredCapitalGoodsInputTax": 3000.00,
+  "totalInputTaxAsset": 15000.00,
+  "computedAt": "2026-04-20T09:00:00Z"
+}
+```
+
+### 7.8 Sequence — VAT Import & Push-Back (with Input Tax Asset)
 
 ```mermaid
 sequenceDiagram
@@ -793,37 +984,55 @@ sequenceDiagram
     participant EF as Edge Function (portal-sync)
     participant P as Portal API
 
-    Note over TP,P: Import (UC-10)
-    TP->>UI: Import from Portal, pick client + period
-    UI->>EF: GET client + tax-computation (session JWT)
+    Note over TP,P: Import a VAT quarter (UC-10)
+    TP->>UI: Import from Portal, pick client + quarter
+    UI->>EF: GET client + vat-summary (session JWT)
     EF->>P: GET client profile (OAuth bearer)
     P-->>EF: Client profile
-    EF->>P: GET tax-computations for period
-    P-->>EF: TaxComputation
-    EF-->>UI: client + computation
-    UI->>UI: Map to Taxpayer + FilingData, computeFor recomputes
-    UI-->>TP: Pre-filled Guided/Form view for review
+    EF->>P: GET vat-summary for the quarter
+    P-->>EF: Sales by class + purchases by input-VAT category
+    EF-->>UI: client + vat-summary
+    UI->>UI: Map to Taxpayer + FilingData, apply carry-over, computeFor recomputes
+    UI-->>TP: Pre-filled 2550Q for review
 
     Note over TP,P: Generate and Push-back (UC-08, UC-11)
     TP->>UI: Export XML / mark filed, then Sync to Portal
-    UI->>UI: Build eBIRForms XML + A4 PDF
-    UI->>EF: POST bir-filing (xml, pdf, figures, status)
+    UI->>UI: Build eBIRForms XML + A4 PDF, compute Input Tax Asset
+    UI->>EF: POST bir-filing (xml, pdf, figures)
     EF->>P: POST bir-filings (OAuth bearer)
     P-->>EF: reference id, stored
-    EF-->>UI: Portal reference id
-    UI->>UI: Store externalRef on filing
+    UI->>EF: POST input-tax-asset (excess input VAT carried forward)
+    EF->>P: POST input-tax-asset (OAuth bearer)
+    P-->>EF: booked as asset
+    EF-->>UI: Portal references
+    UI->>UI: Store externalRef + carry Input Tax Asset to next quarter
 ```
 
-### 7.8 Sync Semantics & Error Handling
+### 7.9 Sync Semantics & Error Handling
 
 | Concern | Approach |
 |---|---|
 | **Idempotency** | Push-back is keyed by `client + form + period`; a re-send **updates** the existing Portal record rather than duplicating. |
-| **Partial data** | If no computation exists for the period, import the client profile only; the practitioner fills figures manually. |
+| **Partial data** | If a summary is unavailable for the period, import the client profile only; the practitioner fills figures manually. |
 | **Reconciliation** | Imported figures pre-fill inputs; the pure engine recomputes so discrepancies between Portal numbers and BIR rules are visible before filing. |
+| **Carry-over ownership** | The Generator is the source of truth for input-tax carry-over and capital-goods amortization; the Portal only **records** the resulting Input Tax Asset it is handed. |
 | **Failure** | Portal unreachable → the push is marked **pending** and retried; no local data is lost, and the filing remains usable offline. |
 | **Auth expiry** | Expired OAuth token → the Edge Function refreshes (client-credentials) transparently; a hard failure prompts re-authorization. |
-| **Least privilege** | The connector requests only read scopes for import and a single write scope for push-back; the Portal still enforces per-client visibility. |
+| **Least privilege** | The connector requests only read scopes for import and the two write scopes for push-back; the Portal still enforces per-client visibility. |
+
+### 7.10 Standalone Forms — 2307 & 2316 (out of current API scope)
+
+**2307** (Certificate of Creditable Tax Withheld) and **2316** (Certificate of Compensation) are
+**as-needed certificates**, not recurring period returns, so they are **not part of this API
+integration**. In the Generator they are **standalone forms** filled from their own inputs (manual
+entry / their originating document). Two future enhancements are noted for when they are automated:
+
+| Form | Future source | Proposed endpoint (not built now) |
+|---|---|---|
+| **2307** | Portal **withholding records** | `GET /clients/{id}/withholding-certificates?period=` → income payments & tax withheld per ATC per month |
+| **2316** | **Sentire Payroll** | `GET {PAYROLL_BASE}/api/v1/employees/{id}/compensation-summary?year=` → gross/non-taxable/taxable compensation & tax withheld |
+
+Until then, neither the Portal nor the Payroll system needs to build anything for these two forms.
 
 ---
 
