@@ -703,19 +703,59 @@ flowchart LR
 > pure engine recomputes so the Portal's numbers and the BIR form's numbers are reconciled, not blindly
 > trusted.
 
-### 7.4 Endpoints Consumed (Portal → Generator)
+### 7.4 Data Required to Fill Each Form (Inbound Data Contract)
+
+The Portal's single aggregate `TaxComputation` (grossIncome, totalDeductions, taxableIncome,
+grossTaxDue, taxCredits, netTaxPayable) is enough to pre-fill the **summary lines** of the income-tax
+and percentage-tax returns. Several forms, however, need **breakdown detail** the aggregate does not
+carry, and two forms (2307, 2316) need **transaction-/payroll-level** data that is not part of a tax
+computation at all. This subsection states, per form, exactly what the Generator needs and where each
+item comes from — so the Portal API can be scoped to actually fill the forms, not just their totals.
+
+**Source legend** — **T** Taxpayer profile (already synced) · **A** Portal aggregate `TaxComputation`
+· **L** Portal **tax-classified line data** (sales/purchases; extended endpoints in §7.5) · **W** Portal
+**withholding records** · **P** **Payroll system** (e.g. Sentire Payroll) · **M** manual / firm input.
+
+| Form | Required input data (beyond taxpayer background = **T**) | Source |
+|---|---|---|
+| **1701** (annual, individuals — mixed) | Gross sales/receipts & returns; cost of sales/services; ordinary itemized deductions **or** OSD (method = **M**); non-operating/other income; exempt & special/preferential-rate income + share to gov't; **NOLCO** carry-over; creditable withholding (2307); prior-quarter (1701Q) payments; foreign tax credits; penalties; spouse income (if joint). | A + L + W + **M** (NOLCO, foreign credits, penalties, method) |
+| **1701A** (annual — purely business/profession) | Method **8% flat vs graduated+OSD** (**M**); gross sales/receipts; cost & allowable deductions (if graduated); creditable withholding; prior payments. | A + L + W + **M** |
+| **1701Q** (quarterly, individuals) | Quarter **and cumulative** gross sales/receipts; cost; deductions/OSD; creditable withholding (this + prior quarters); tax paid prior quarters; 8% option (**M**). | A(per period) + L + W + **M** |
+| **1702RT** (annual, corporations — regular) | Sales/revenues; cost of sales; gross income; non-operating income; itemized deductions **or** OSD; **gross income for MCIT (2%)**; creditable withholding; prior payments; **excess MCIT** prior years; **NOLCO**. | A + L + W + **M** (MCIT excess, NOLCO) |
+| **1702Q** (quarterly, corporations) | Quarterly + cumulative sales, cost, deductions, taxable income; **MCIT quarterly gross income**; creditable withholding; prior payments. | A(per period) + L + W + **M** |
+| **2550Q** (quarterly VAT) ⚠️ | **Sales classified by VAT status**: vatable (12%), zero-rated, exempt, sales to gov't → output VAT; **purchases classified by input-VAT category**: capital goods (≤/> ₱1M), domestic goods/services, importation, services by non-residents → input VAT; input tax carried over; creditable VAT withheld (2307); advance payments. | **L (VAT-classified sales *and* purchases)** + W + M — *aggregate alone is insufficient* |
+| **2551Q** (quarterly percentage tax) ⚠️ | **Per-ATC lines**: taxable gross receipts + ATC code (+ rate) per percentage-tax category; creditable percentage tax withheld (2307); prior payments; penalties. | **L (receipts classified by percentage-tax ATC)** + W + M |
+| **2307** (creditable withholding cert.) ⚠️ | Payee & payor identity (name, TIN, address); **income payments per ATC per month** of the quarter; tax withheld per ATC. | **W (withholding transaction records)** + T + M — *not derivable from sales/expenses* |
+| **2316** (compensation cert.) ⚠️ | Employer & employee details; gross compensation; **non-taxable** (13th-month, de minimis, SSS/PhilHealth/Pag-IBIG); taxable compensation; tax withheld; premiums; prior-employer figures. | **P (payroll system — Sentire Payroll)** + M — *not in the accounting Portal's sales/expenses* |
+
+**Gap summary — what the current Portal `TaxComputation` cannot supply on its own:**
+
+1. **VAT (2550Q)** and **Percentage Tax (2551Q)** need **tax-classified line data**, not a single gross
+   figure — sales split by VAT class / percentage-tax ATC, and purchases split by input-VAT category.
+   → The Portal must expose the extended line endpoints in §7.5.
+2. **2307** needs **withholding records** (income payments & tax withheld per ATC per month).
+3. **2316** needs **payroll data** — best served by integrating **Sentire Payroll**, not this Portal.
+4. **NOLCO, excess MCIT, foreign tax credits, penalties, and method elections** (8% vs graduated,
+   itemized vs OSD) are **firm decisions / carry-overs** that generally remain **manual inputs**, with
+   the Portal optionally storing prior-period values to auto-carry them forward.
+
+### 7.5 Endpoints Consumed (Portal → Generator)
 
 Base: `{PORTAL_BASE}/api/v1` — all calls via the `portal-sync` Edge Function with an OAuth2 bearer token.
+The first three cover profile + summary; the rest supply the **breakdown detail** §7.4 requires.
 
-| Method & Path | Purpose | Maps to |
+| Method & Path | Purpose | Fills |
 |---|---|---|
 | `GET /clients?assignedTo=me&query=` | List/select importable clients | Import picker |
 | `GET /clients/{clientId}` | Fetch one client profile | → Taxpayer (§7.3) |
-| `GET /clients/{clientId}/tax-computations?periodType=&periodStart=&periodEnd=` | Fetch computed figures for a period | → FilingData prefill |
-| `GET /clients/{clientId}/sales?from=&to=` | Optional: itemized sales for schedules | Schedule lines (1701/1702) |
-| `GET /clients/{clientId}/expenses?from=&to=` | Optional: itemized/deductible expenses | Deduction schedules |
+| `GET /clients/{clientId}/tax-computations?periodType=&periodStart=&periodEnd=` | Computed **summary** figures for a period | Income-tax / percentage summary lines |
+| `GET /clients/{clientId}/sales?from=&to=&classify=vat\|percentage` | **Tax-classified sales lines** (VAT status or percentage-tax ATC) | 2550Q sales block; 2551Q per-ATC lines; income-tax sales |
+| `GET /clients/{clientId}/purchases?from=&to=` | **Input-VAT-classified purchases** (capital / goods / services / importation) | 2550Q input-tax block; itemized deductions |
+| `GET /clients/{clientId}/expenses?from=&to=` | Deductible expense lines by category | Income-tax deduction schedules |
+| `GET /clients/{clientId}/withholding-certificates?type=2307&period=` | **Withholding records** (income payments & tax withheld per ATC) | 2307; creditable-withholding credit lines on other forms |
+| `GET {PAYROLL_BASE}/api/v1/employees/{id}/compensation-summary?year=` *(separate Sentire Payroll connector)* | Payroll compensation & tax withheld | 2316 |
 
-### 7.5 Endpoint Provided-To / Called-Back (Generator → Portal)
+### 7.6 Endpoint Provided-To / Called-Back (Generator → Portal)
 
 | Method & Path | Purpose | Payload (summary) |
 |---|---|---|
@@ -744,7 +784,7 @@ Base: `{PORTAL_BASE}/api/v1` — all calls via the `portal-sync` Edge Function w
 }
 ```
 
-### 7.6 Sequence — Import & Push-Back
+### 7.7 Sequence — Import & Push-Back
 
 ```mermaid
 sequenceDiagram
@@ -774,7 +814,7 @@ sequenceDiagram
     UI->>UI: Store externalRef on filing
 ```
 
-### 7.7 Sync Semantics & Error Handling
+### 7.8 Sync Semantics & Error Handling
 
 | Concern | Approach |
 |---|---|
