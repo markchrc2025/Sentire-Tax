@@ -111,4 +111,26 @@ describe("build1701", () => {
   it("builds the canonical eBIRForms filename", () => {
     expect(fileName1701(filing, tp)).toBe("2184305230001701v2018122025.xml");
   });
+
+  it("wires Part IX reconciliation values into the txtPg4IPart9 keys", () => {
+    const d = {
+      ...data,
+      ix1A: "800000",
+      ix2A: "50000",
+      ix2descA: "Non-deductible interest",
+      ix6A: "25000",
+      ix6descA: "Interest income subjected to final tax",
+    };
+    const f = { ...filing, data: d };
+    const x = build1701(f, tp, compute1701(d));
+    expect(x).toContain("frm1701:txtPg4IPart9_1A=800,000.00frm1701:txtPg4IPart9_1A=");
+    expect(x).toContain("frm1701:txtPg4IPart9_2Particulars=Non-deductible%20interestfrm1701:txtPg4IPart9_2Particulars=");
+    expect(x).toContain("frm1701:txtPg4IPart9_2A=50,000.00frm1701:txtPg4IPart9_2A=");
+    expect(x).toContain("frm1701:txtPg4IPart9_5A=850,000.00frm1701:txtPg4IPart9_5A="); // 1+2
+    expect(x).toContain("frm1701:txtPg4IPart9_6A=25,000.00frm1701:txtPg4IPart9_6A=");
+    expect(x).toContain("frm1701:txtPg4IPart9_10A=25,000.00frm1701:txtPg4IPart9_10A=");
+    expect(x).toContain("frm1701:txtPg4IPart9_11A=825,000.00frm1701:txtPg4IPart9_11A="); // 5−10
+    // Key count unchanged — same schema as the authentic sample.
+    expect((x.match(/<div>/g) || []).length).toBe(837);
+  });
 });

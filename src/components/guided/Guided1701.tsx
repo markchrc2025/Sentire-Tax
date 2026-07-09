@@ -27,6 +27,34 @@ const ATC_OPTIONS = [
   { val: "II017", code: "II017", title: "Income from Profession — 8% IT Rate" },
 ];
 
+// A/B (Taxpayer/Spouse) money pair for Part IX rows. Module scope so the
+// inputs keep a stable element identity across renders (no cursor loss).
+function PairAB({
+  F,
+  base,
+  spouse,
+}: {
+  F: ReturnType<typeof makeGuided>;
+  base: string;
+  spouse: boolean;
+}) {
+  const cap = { fontSize: 11.5, fontWeight: 600, color: "var(--muted)", marginBottom: 4 } as const;
+  return (
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 180px", maxWidth: 240 }}>
+        <div style={cap}>A) Taxpayer/Filer</div>
+        <F.Money field={base + "A"} />
+      </div>
+      {spouse && (
+        <div style={{ flex: "1 1 180px", maxWidth: 240 }}>
+          <div style={cap}>B) Spouse</div>
+          <F.Money field={base + "B"} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Schedule 4 ordinary allowable itemized deduction categories (items 1-16).
 const SCHED4 = [
   "Amortizations",
@@ -412,6 +440,78 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
           />
         </>
       ),
+    },
+    {
+      part: "Part IX",
+      tab: "Books",
+      title: "Reconciliation of net income per books",
+      desc: "Mandatory: reconcile the net income in your books of accounts against the taxable income on this return (Part IX). Totals are computed for you.",
+      render: () => {
+        const showSpouse = married && data.spouseIncome === "yes";
+        return (
+          <>
+            <F.Q item="Item 1" label="Net Income/(Loss) per Books" req>
+              <PairAB F={F} base="ix1" spouse={showSpouse} />
+            </F.Q>
+            <F.Q
+              item="Item 2"
+              label="Add: Non-Deductible Expenses / Taxable Other Income"
+              help="e.g. penalties, provisions, or book expenses not deductible for tax."
+            >
+              <F.Txt field="ix2descA" ph="Specify (e.g. Non-deductible interest expense)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix2" spouse={showSpouse} />
+            </F.Q>
+            <F.Q item="Item 3" label="Add: Non-Deductible Expenses / Taxable Other Income (2nd line)">
+              <F.Txt field="ix3descA" ph="Specify (optional)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix3" spouse={showSpouse} />
+            </F.Q>
+            <F.Q item="Item 4" label="Add: other reconciling item">
+              <F.Txt field="ix4descA" ph="Specify (optional)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix4" spouse={showSpouse} />
+            </F.Q>
+            <F.Q
+              item="Item 6"
+              label="Less: Non-Taxable Income / Income Subjected to Final Tax"
+              help="e.g. interest income already subjected to final withholding tax."
+            >
+              <F.Txt field="ix6descA" ph="Specify (e.g. Interest income subjected to final tax)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix6" spouse={showSpouse} />
+            </F.Q>
+            <F.Q item="Item 7" label="Less: Non-Taxable Income (2nd line)">
+              <F.Txt field="ix7descA" ph="Specify (optional)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix7" spouse={showSpouse} />
+            </F.Q>
+            <F.Q item="Item 8" label="Less: Special/Other Allowable Deductions">
+              <F.Txt field="ix8descA" ph="Specify (optional)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix8" spouse={showSpouse} />
+            </F.Q>
+            <F.Q item="Item 9" label="Less: other reconciling item">
+              <F.Txt field="ix9descA" ph="Specify (optional)" maxw={420} />
+              <div style={{ height: 8 }} />
+              <PairAB F={F} base="ix9" spouse={showSpouse} />
+            </F.Q>
+            <F.Result
+              rows={[
+                { label: "Item 5 · Total (Items 1 to 4)", value: A.ixTotalAdd },
+                { label: "Item 10 · Total (Items 6 to 9)", value: A.ixTotalLess },
+                ...(showSpouse
+                  ? [
+                      { label: "Item 5 (Spouse)", value: comp.B.ixTotalAdd },
+                      { label: "Item 10 (Spouse)", value: comp.B.ixTotalLess },
+                    ]
+                  : []),
+                { label: "Item 11 · Net Taxable Income/(Loss)", value: A.ixNetTaxable, big: true },
+              ]}
+            />
+          </>
+        );
+      },
     },
     {
       part: "Review",

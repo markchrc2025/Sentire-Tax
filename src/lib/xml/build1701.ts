@@ -19,6 +19,7 @@
 import type { Filing, Taxpayer } from "../../types";
 import type { Comp1701 } from "../compute";
 import { amt, dob, enc, parseYear, rb, tinParts, type XmlRow } from "./xmlkit";
+import { num } from "../format";
 
 const NS = "frm1701:";
 
@@ -350,26 +351,28 @@ export function build1701(filing: Filing, tp: Taxpayer | null, comp: Comp1701): 
     Z(`txtPg4IPart8_${i}B`);
   }
 
-  // Part IX — stockholders/partners, rows 1, 2-4 (Particulars+A/B), 5,
-  // 6-9 (Particulars+A/B), 10, 11 (A/B)
-  Z("txtPg4IPart9_1A");
-  Z("txtPg4IPart9_1B");
+  // Part IX — reconciliation of net income per books against taxable income:
+  // row 1 (A/B), specify rows 2-4 (Particulars + A/B), 5 total (derived),
+  // specify rows 6-9, totals 10/11 (derived). Same key order as the authentic
+  // sample — only the values are now wired from the filing.
+  P("txtPg4IPart9_1A", amt(num(d.ix1A)));
+  P("txtPg4IPart9_1B", amt(num(d.ix1B)));
   for (let i = 2; i <= 4; i++) {
-    E(`txtPg4IPart9_${i}Particulars`);
-    Z(`txtPg4IPart9_${i}A`);
-    Z(`txtPg4IPart9_${i}B`);
+    P(`txtPg4IPart9_${i}Particulars`, enc(String(d[`ix${i}descA`] || "")));
+    P(`txtPg4IPart9_${i}A`, amt(num(d[`ix${i}A`])));
+    P(`txtPg4IPart9_${i}B`, amt(num(d[`ix${i}B`])));
   }
-  Z("txtPg4IPart9_5A");
-  Z("txtPg4IPart9_5B");
+  P("txtPg4IPart9_5A", amt(A.ixTotalAdd));
+  P("txtPg4IPart9_5B", amt(comp.B.ixTotalAdd));
   for (let i = 6; i <= 9; i++) {
-    E(`txtPg4IPart9_${i}Particulars`);
-    Z(`txtPg4IPart9_${i}A`);
-    Z(`txtPg4IPart9_${i}B`);
+    P(`txtPg4IPart9_${i}Particulars`, enc(String(d[`ix${i}descA`] || "")));
+    P(`txtPg4IPart9_${i}A`, amt(num(d[`ix${i}A`])));
+    P(`txtPg4IPart9_${i}B`, amt(num(d[`ix${i}B`])));
   }
-  Z("txtPg4IPart9_10A");
-  Z("txtPg4IPart9_10B");
-  Z("txtPg4IPart9_11A");
-  Z("txtPg4IPart9_11B");
+  P("txtPg4IPart9_10A", amt(A.ixTotalLess));
+  P("txtPg4IPart9_10B", amt(comp.B.ixTotalLess));
+  P("txtPg4IPart9_11A", amt(A.ixNetTaxable));
+  P("txtPg4IPart9_11B", amt(comp.B.ixNetTaxable));
 
   // ================================================ ACCOUNT INFO (Pg1m: Schedule A & B)
   P("txtPg1mTIN1", t.t1);
