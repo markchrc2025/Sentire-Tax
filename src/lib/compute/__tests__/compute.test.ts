@@ -86,6 +86,24 @@ describe("compute1701 — mixed income", () => {
     expect(c.A.tax8biz).toBe(60000);
     expect(c.A.taxDue).toBe(42500 + 60000); // grad(500k)=42,500 + 60,000
   });
+  it("Part IX: reconciliation totals derive from items 1-4 and 6-9 per column", () => {
+    const c = compute1701({
+      year: "2024",
+      ix1A: "800000", // net income per books
+      ix2A: "50000", // add: non-deductible expense
+      ix4A: "10000", // add: other
+      ix6A: "25000", // less: income subjected to final tax
+      ix8A: "5000", // less: special deduction
+      ix1B: "100000",
+      ix6B: "20000",
+    });
+    expect(c.A.ixTotalAdd).toBe(860000); // items 1+2+3+4
+    expect(c.A.ixTotalLess).toBe(30000); // items 6+7+8+9
+    expect(c.A.ixNetTaxable).toBe(830000); // 5 − 10
+    expect(c.B.ixTotalAdd).toBe(100000);
+    expect(c.B.ixTotalLess).toBe(20000);
+    expect(c.B.ixNetTaxable).toBe(80000);
+  });
 });
 
 describe("compute1701Q — quarterly individual", () => {

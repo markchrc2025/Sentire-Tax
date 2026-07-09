@@ -859,13 +859,13 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <CRow no="2" label={<BirText field="ix2descA" data={data} set={set} placeholder="Add: Non-Deductible Expenses/Taxable Other Income (specify)" />} base="ix2" />
           <CRow no="3" label={<BirText field="ix3descA" data={data} set={set} placeholder="Add: Non-Deductible Expenses/Taxable Other Income (specify)" />} base="ix3" />
           <CRow no="4" label={<BirText field="ix4descA" data={data} set={set} placeholder="(specify)" />} base="ix4" />
-          <CRow no="5" label="Total (Sum of Items 1 to 4)" base="ix5_" />
+          <CRow no="5" label="Total (Sum of Items 1 to 4)" base="ix5_" roA roB valA={A.ixTotalAdd} valB={Bb.ixTotalAdd} />
           <CRow no="6" label={<BirText field="ix6descA" data={data} set={set} placeholder="Less: Non-Taxable Income / Income Subjected to Final Tax (specify)" />} base="ix6" />
           <CRow no="7" label={<BirText field="ix7descA" data={data} set={set} placeholder="(specify)" />} base="ix7" />
           <CRow no="8" label={<BirText field="ix8descA" data={data} set={set} placeholder="Less: Special/Other Allowable Deductions (specify)" />} base="ix8" />
           <CRow no="9" label={<BirText field="ix9descA" data={data} set={set} placeholder="(specify)" />} base="ix9" />
-          <CRow no="10" label="Total (Sum of Items 6 to 9)" base="ix10_" />
-          <CRow no="11" label="Net Taxable Income/(Loss) (Item 5 Less Item 10)" base="ix11_" strong />
+          <CRow no="10" label="Total (Sum of Items 6 to 9)" base="ix10_" roA roB valA={A.ixTotalLess} valB={Bb.ixTotalLess} />
+          <CRow no="11" label="Net Taxable Income/(Loss) (Item 5 Less Item 10)" base="ix11_" roA roB valA={A.ixNetTaxable} valB={Bb.ixNetTaxable} strong />
         </div>
 
         {/* tax-rate tables */}

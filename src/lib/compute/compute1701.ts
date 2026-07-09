@@ -56,6 +56,12 @@ export interface Side1701 {
   afterInstall: number;
   penalties: number;
   totalPayable: number;
+  /** Part IX Item 5 — Total additions (Sum of Items 1 to 4). */
+  ixTotalAdd: number;
+  /** Part IX Item 10 — Total subtractions (Sum of Items 6 to 9). */
+  ixTotalLess: number;
+  /** Part IX Item 11 — Net Taxable Income/(Loss) (Item 5 less Item 10). */
+  ixNetTaxable: number;
 }
 
 export interface Comp1701 {
@@ -137,6 +143,13 @@ export function compute1701(d: FilingData): Comp1701 {
     const split = num(d["interest" + s]) + num(d["surcharge" + s]) + num(d["compromise" + s]);
     o.penalties = split > 0 ? split : num(d["pen" + s]);
     o.totalPayable = o.afterInstall + o.penalties;
+    // Part IX — reconciliation of net income per books against taxable income.
+    // Items 1-4 and 6-9 are manual entries; the totals (5, 10, 11) are derived.
+    o.ixTotalAdd =
+      num(d["ix1" + s]) + num(d["ix2" + s]) + num(d["ix3" + s]) + num(d["ix4" + s]);
+    o.ixTotalLess =
+      num(d["ix6" + s]) + num(d["ix7" + s]) + num(d["ix8" + s]) + num(d["ix9" + s]);
+    o.ixNetTaxable = o.ixTotalAdd - o.ixTotalLess;
     out[s] = o;
   });
   out.aggregate = out.A.totalPayable + out.B.totalPayable;
