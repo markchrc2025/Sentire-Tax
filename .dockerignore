@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+coverage
+.vite
+.git
+*.local
+*.log
+.DS_Store
+design_handoff_bir_form_generator
+docs
+supabase

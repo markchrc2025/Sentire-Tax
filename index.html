@@ -14,6 +14,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Runtime config (rewritten by the container entrypoint on Sliplane;
+         empty stub on Vercel/dev so build-time env vars apply). -->
+    <script src="/env.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
