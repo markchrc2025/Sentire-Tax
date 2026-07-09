@@ -11,80 +11,25 @@ function blank(): BirDatabase {
   return { taxpayers: {}, filings: {}, seq: 1 };
 }
 
-function seed(): BirDatabase {
-  const db = blank();
-  const now = Date.now();
-  const t1 = "tp_seed_aurora";
-  const t2 = "tp_seed_delacruz";
-  db.taxpayers[t1] = {
-    id: t1,
-    kind: "non-individual",
-    regName: "AURORA DIGITAL SOLUTIONS INC.",
-    lastName: "",
-    firstName: "",
-    middleName: "",
-    tradeName: "AURORA DIGITAL",
-    tin: "284-551-907",
-    branch: "00000",
-    rdo: "050",
-    taxTypes: [
-      { type: "Income Tax", form: "1702RT", frequency: "Annually", startDate: "2021-01-01" },
-      { type: "Income Tax", form: "1702Q", frequency: "Quarterly", startDate: "2021-01-01" },
-      { type: "Value-Added Tax", form: "2550Q", frequency: "Quarterly", startDate: "2021-01-01" },
-      { type: "Registration Fee", form: "0605", frequency: "Annually", startDate: "2021-01-01" },
-    ],
-    address: "Unit 12F, Cyberscape Beta, Topaz Road, Ortigas Center",
-    city: "Pasig City",
-    zip: "1605",
-    birthdate: "",
-    email: "tax@auroradigital.ph",
-    phone: "02-8845-1190",
-    citizenship: "Filipino",
-    civilStatus: "",
-    taxpayerType: "",
-    rdoName: "RDO 050 - Pasig City",
-    classification: "Small",
-    createdAt: now,
-  };
-  db.taxpayers[t2] = {
-    id: t2,
-    kind: "individual",
-    regName: "",
-    lastName: "DELA CRUZ",
-    firstName: "MARIA ISABEL",
-    middleName: "SANTOS",
-    tin: "192-845-663",
-    branch: "00000",
-    rdo: "039",
-    taxTypes: [
-      { type: "Income Tax", form: "1701", frequency: "Annually", startDate: "2019-03-01" },
-      { type: "Income Tax", form: "1701Q", frequency: "Quarterly", startDate: "2019-03-01" },
-      { type: "Percentage Tax", form: "2551Q", frequency: "Quarterly", startDate: "2019-03-01" },
-    ],
-    address: "27 Magnolia Street, Barangay Sikatuna Village, Quezon City",
-    city: "Quezon City",
-    zip: "1101",
-    birthdate: "1989-04-12",
-    email: "maria.delacruz@gmail.com",
-    phone: "0917-555-2841",
-    citizenship: "Filipino",
-    civilStatus: "Married",
-    taxpayerType: "Professional",
-    classification: "Micro",
-    createdAt: now,
-  };
-  db.seq = 5;
-  db._seeded = true;
-  return db;
-}
-
 export class LocalStorageRepository implements Repository {
   private db: BirDatabase;
 
   constructor() {
-    this.db = this.read() || seed();
-    // Persist seed on first run so ids are stable across reloads.
-    if (this.db._seeded && !this.read()) this.persist();
+    // Starts empty on first run — no demo/seed data.
+    this.db = this.read() || blank();
+    // One-time cleanup: drop demo records a pre-1.0 build may have seeded
+    // into this browser's storage.
+    if (this.db._seeded) {
+      delete this.db.taxpayers["tp_seed_aurora"];
+      delete this.db.taxpayers["tp_seed_delacruz"];
+      Object.values(this.db.filings).forEach((f) => {
+        if (f.taxpayerId === "tp_seed_aurora" || f.taxpayerId === "tp_seed_delacruz") {
+          delete this.db.filings[f.id];
+        }
+      });
+      delete this.db._seeded;
+      this.persist();
+    }
   }
 
   private read(): BirDatabase | null {
@@ -209,5 +154,3 @@ export function getRepository(): Repository {
   if (!singleton) singleton = new LocalStorageRepository();
   return singleton;
 }
-
-export { seed as seedDatabase };
