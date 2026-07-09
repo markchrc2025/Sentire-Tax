@@ -80,6 +80,17 @@ flip DNS/links.)*
 
 *(Half a day + a verification window. Read fully before starting.)*
 
+> **Fresh-start shortcut (no data to keep).** If the cloud data is disposable
+> test data, Phase 2 collapses to: stand up the stack (§2.1–2.2) → run
+> `supabase/schema.sql` (§2.3) → point the web service's two env vars at the
+> new stack (§2.5 step 2–3) → **create your account fresh** in the app. Skip
+> §2.4 (data migration) entirely. The one thing you CANNOT skip is the stack
+> itself: `schema.sql` references `auth.users`, `auth.uid()` and
+> `storage.buckets`/`storage.objects`, which only exist after the Supabase
+> images (GoTrue, storage-api) have run their own migrations — the script
+> fails on a bare `postgres:*` container, and the browser app can only talk
+> to the HTTP stack (Kong), never to Postgres directly.
+
 ### 2.1 What actually has to run
 
 The app uses exactly these Supabase services (no Realtime, no Edge Functions,
