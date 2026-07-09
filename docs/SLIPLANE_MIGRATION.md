@@ -76,9 +76,71 @@ flip DNS/links.)*
 
 ---
 
-## Phase 2 — Data plane: Supabase cloud → self-hosted Supabase on Sliplane
+## Phase 2A — Data plane: the Sliplane-native backend (recommended, implemented)
 
-*(Half a day + a verification window. Read fully before starting.)*
+The repo now ships its own backend: **`server/`** — a small API (Hono + Node 22)
+that replaces Supabase entirely using resources you already have on Sliplane:
+
+- **Auth** — email + password with bcrypt hashes and 30-day JWTs (`users` table).
+- **Data** — your managed Postgres ("Shared Database"), database `sentire_tax`.
+  The schema **auto-migrates at boot** (idempotent DDL) — no SQL script to run.
+- **COR files** — your Sliplane **Object Storage** (S3-compatible), presigned
+  GET URLs, same `<owner>/<taxpayer>` layout as before.
+- Every request is scoped `owner_id = <authenticated user>` — the API replaces
+  Supabase's row-level security.
+
+The SPA switches modes by env var alone: when `VITE_API_URL` is set, the app
+uses the API (new `ApiRepository`); otherwise it falls back to Supabase (if
+configured) or localStorage. Nothing else changes.
+
+### 2A.1 Create the API service
+
+Sliplane → your server → *Deploy Service* → *from GitHub repository* →
+`markchrc2025/Sentire-Tax`, branch `main`, **Dockerfile path: `server/Dockerfile`**
+→ exposed port **8080** → visibility **public** (the SPA calls it from browsers).
+
+### 2A.2 API service — environment variables
+
+| Name | Value | Notes |
+|---|---|---|
+| `DATABASE_URL` | `postgresql://owner:<DB_PASSWORD>@pg-vdx9rp.postgres.fsn1.ger.sliplane.app:10197/sentire_tax` | host/port/user from the Shared Database settings page; database **`sentire_tax`** (already created). Password = the eye-icon value. |
+| `JWT_SECRET` | output of `openssl rand -base64 48` | any long random string; changing it signs everyone out |
+| `S3_ENDPOINT` | from Sliplane → Object Storage settings | the S3 endpoint URL |
+| `S3_BUCKET` | your bucket name | |
+| `S3_ACCESS_KEY_ID` | from Object Storage settings | |
+| `S3_SECRET_ACCESS_KEY` | from Object Storage settings | |
+| `S3_REGION` | as shown (or leave unset → `auto`) | |
+| `CORS_ORIGIN` | `https://sentire-tax.sliplane.app` | comma-separated list; add your custom domain(s) too |
+| `PORT` | `8080` | must match the exposed port |
+
+Deploy. The log should show `[db] schema ready` then `[api] listening on :8080`.
+`GET https://<api-service>.sliplane.app/health` → `{"ok":true}`.
+
+### 2A.3 Web service — environment variables
+
+| Name | Value |
+|---|---|
+| `VITE_API_URL` | `https://<api-service>.sliplane.app` |
+| ~~`VITE_SUPABASE_URL`~~ / ~~`VITE_SUPABASE_ANON_KEY`~~ | **remove** (API mode wins anyway; removing avoids confusion) |
+
+Restart the web service (no rebuild — the entrypoint re-renders `/env.js`).
+
+### 2A.4 Cut over
+
+1. Open the app → **Create one** → sign up fresh (test data stays behind on
+   Supabase cloud, which you can now delete whenever).
+2. Verify with the checklist below (taxpayer + COR upload + filing + XML).
+3. **Rollback:** delete `VITE_API_URL` and restore the two Supabase vars, restart.
+
+> **Ops note:** enable backups on the Shared Database (Sliplane → Backups tab)
+> — with Supabase gone, that's now your only safety net.
+
+---
+
+## Phase 2B — Alternative: self-hosted Supabase stack on Sliplane
+
+*(Kept for reference — use 2A instead unless you specifically want the Supabase
+stack. Half a day + a verification window. Read fully before starting.)*
 
 > **Fresh-start shortcut (no data to keep).** If the cloud data is disposable
 > test data, Phase 2 collapses to: stand up the stack (§2.1–2.2) → run
