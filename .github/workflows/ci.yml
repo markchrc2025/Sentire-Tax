@@ -25,3 +25,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      # API service (server/): its own workspace — typecheck + compile.
+      - run: npm ci
+        working-directory: server
+      - run: npm run build
+        working-directory: server

@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-ssr
+server/node_modules
+server/dist
 coverage
 .vite
 .git

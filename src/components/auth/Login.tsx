@@ -1,8 +1,9 @@
-// Login.tsx — email + password sign in / sign up for cloud mode.
-// On success, the auth state change is picked up by the RepositoryProvider.
+// Login.tsx — email + password sign in / sign up for cloud mode (API or
+// Supabase, via the auth facade). On success, the auth state change is picked
+// up by the RepositoryProvider.
 
 import { useState } from "react";
-import { supabase } from "../../lib/supabase/client";
+import { authSignIn, authSignUp } from "../../lib/auth/facade";
 import { Mark } from "../icons";
 
 export function Login() {
@@ -15,21 +16,18 @@ export function Login() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!supabase) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        if (!data.session) {
+        const needsEmailConfirm = await authSignUp(email, password);
+        if (needsEmailConfirm) {
           setNotice("Check your email to confirm your account, then sign in.");
           setMode("signin");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await authSignIn(email, password);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

@@ -9,7 +9,7 @@ OUT=/usr/share/nginx/html/env.js
 {
   echo "// generated at container start — do not edit"
   echo "window.__ENV = {"
-  for key in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
+  for key in VITE_API_URL VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY; do
     eval "val=\${$key:-}"
     if [ -n "$val" ]; then
       printf '  %s: "%s",\n' "$key" "$val"
