@@ -95,6 +95,62 @@ describe("portalClientToTaxpayer", () => {
     expect(suggestedForm(client)).toBe("2550Q");
     expect(suggestedForm({ ...client, taxType: "Percentage Tax" })).toBe("2551Q");
   });
+
+  it("carries the full filer profile when the Portal provides it", () => {
+    const full: PortalClient = {
+      ...client,
+      kind: "non-individual",
+      regName: "Acme Trading Corporation",
+      tradeName: "Acme",
+      branch: "00001",
+      rdo: "050",
+      rdoName: "Makati West",
+      city: "Makati",
+      zip: "1226",
+      incorpDate: "2019-05-10T00:00:00.000Z",
+      email: "ops@acme.example",
+      phone: "+63 2 8888 0000",
+      citizenship: "Filipino",
+      taxpayerType: "Corporation",
+      classification: "Large",
+      taxTypesJson: [
+        { type: "Value-Added Tax", form: "2550Q", frequency: "Quarterly", startDate: "2019-05-10T00:00:00.000Z" },
+        { type: "Income Tax", form: "1702RT", frequency: "Annually" },
+      ],
+    };
+    const t = portalClientToTaxpayer(full);
+    expect(t.regName).toBe("Acme Trading Corporation"); // uses regName, not businessName
+    expect(t.branch).toBe("00001");
+    expect(t.rdo).toBe("050");
+    expect(t.rdoName).toBe("Makati West");
+    expect(t.city).toBe("Makati");
+    expect(t.incorpDate).toBe("2019-05-10"); // ISO datetime → yyyy-mm-dd
+    expect(t.classification).toBe("Large");
+    expect(t.taxTypes).toHaveLength(2);
+    expect(t.taxTypes?.[0]).toMatchObject({ type: "Value-Added Tax", form: "2550Q" });
+    expect(t.taxTypes?.[0].startDate).toBe("2019-05-10");
+  });
+
+  it("maps an individual filer's name fields and kind", () => {
+    const indiv: PortalClient = {
+      ...client,
+      kind: "individual",
+      regName: null,
+      businessName: "Juan Dela Cruz",
+      lastName: "Dela Cruz",
+      firstName: "Juan",
+      middleName: "Santos",
+      birthdate: "1990-03-15T00:00:00.000Z",
+      civilStatus: "Single",
+      taxType: "Percentage Tax",
+    };
+    const t = portalClientToTaxpayer(indiv);
+    expect(t.kind).toBe("individual");
+    expect(t.lastName).toBe("Dela Cruz");
+    expect(t.firstName).toBe("Juan");
+    expect(t.birthdate).toBe("1990-03-15");
+    expect(t.civilStatus).toBe("Single");
+  });
 });
 
 describe("buildFilingPushback", () => {

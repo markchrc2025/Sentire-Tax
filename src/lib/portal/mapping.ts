@@ -60,36 +60,74 @@ export function vatSummaryToFilingData(s: PortalVatSummary): FilingData {
   return data;
 }
 
+/** An ISO date or datetime → yyyy-mm-dd (Taxpayer date fields use plain days). */
+function isoDay(v: string | null | undefined): string {
+  return v ? v.slice(0, 10) : "";
+}
+
 /**
- * Map a Portal `Client` into a Taxpayer draft (design §7.4). The percentage-tax
- * ATC & rate are NOT taken from the Portal — they live on the taxpayer profile.
+ * Map a Portal `Client` into a full Taxpayer draft (design §7.4). The Portal is
+ * the system of record, so we carry its entire filer profile; on re-import the
+ * caller merges this over the existing Taxpayer, keeping them in sync. The
+ * percentage-tax ATC & rate are NOT taken from the Portal (they live on the
+ * taxpayer profile). `professionalFee` / `billingMethod` are firm-internal and
+ * deliberately not mapped.
  */
 export function portalClientToTaxpayer(
   client: PortalClient,
 ): Partial<Taxpayer> & { regName: string; tin: string } {
   const isVat = (client.taxType ?? "").toUpperCase().includes("VAT");
-  const suggestedForm = isVat ? "2550Q" : "2551Q";
-  return {
-    kind: "non-individual",
-    regName: client.businessName,
-    tradeName: client.businessName,
-    tin: normalizeTin(client.tin),
-    branch: "00000",
-    address: client.address ?? "",
-    ...(client.taxType
-      ? {
-          taxTypes: [
+  const form = isVat ? "2550Q" : "2551Q";
+  const kind: "individual" | "non-individual" =
+    client.kind === "individual" ? "individual" : "non-individual";
+
+  // Prefer the Portal's registered Tax Types; else seed one line from taxType.
+  const taxTypes =
+    client.taxTypesJson && client.taxTypesJson.length
+      ? client.taxTypesJson
+          .map((r) => ({
+            type: r.type ?? "",
+            form: r.form ?? "",
+            frequency: r.frequency ?? "",
+            ...(r.startDate ? { startDate: r.startDate.slice(0, 10) } : {}),
+          }))
+          .filter((r) => r.type || r.form || r.frequency)
+      : client.taxType
+        ? [
             {
               type: client.taxType,
-              form: suggestedForm,
+              form,
               frequency: "Quarterly",
               ...(client.fiscalYearStart
-                ? { startDate: client.fiscalYearStart }
+                ? { startDate: isoDay(client.fiscalYearStart) }
                 : {}),
             },
-          ],
-        }
-      : {}),
+          ]
+        : [];
+
+  return {
+    kind,
+    regName: client.regName || client.businessName,
+    lastName: client.lastName ?? "",
+    firstName: client.firstName ?? "",
+    middleName: client.middleName ?? "",
+    tradeName: client.tradeName ?? "",
+    tin: normalizeTin(client.tin),
+    branch: client.branch || "00000",
+    rdo: client.rdo ?? "",
+    ...(client.rdoName ? { rdoName: client.rdoName } : {}),
+    address: client.address ?? "",
+    city: client.city ?? "",
+    zip: client.zip ?? "",
+    birthdate: isoDay(client.birthdate),
+    ...(client.incorpDate ? { incorpDate: isoDay(client.incorpDate) } : {}),
+    email: client.email ?? "",
+    phone: client.phone ?? "",
+    citizenship: client.citizenship ?? "",
+    civilStatus: client.civilStatus ?? "",
+    taxpayerType: client.taxpayerType ?? "",
+    classification: client.classification ?? "",
+    ...(taxTypes.length ? { taxTypes } : {}),
   };
 }
 
