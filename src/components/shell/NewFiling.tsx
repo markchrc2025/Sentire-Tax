@@ -8,6 +8,7 @@ import { displayName, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FormCode } from "../../types";
 import { Icon, SIco } from "../icons";
+import { ImportFromPortal } from "./ImportFromPortal";
 
 export function NewFiling() {
   const { repo } = useRepository();
@@ -36,6 +37,7 @@ export function NewFiling() {
           <h1>New Form</h1>
           <p>Choose a BIR form, the taxable year, then the taxpayer it&rsquo;s for.</p>
         </div>
+        <ImportFromPortal />
       </div>
 
       <div className="s-step-lbl">1 · Select a form</div>
