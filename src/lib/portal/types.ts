@@ -3,6 +3,20 @@
 // local copy so the app has no cross-repo dependency; the server connector
 // (server/src/portal.ts) speaks the same shapes.
 
+/** One BIR "Tax Types" registration line on a Portal client. */
+export interface PortalTaxTypeRow {
+  type?: string;
+  form?: string;
+  frequency?: string;
+  startDate?: string;
+}
+
+/**
+ * A Portal client. The Portal is the system of record for clients; Sentire
+ * refreshes its Taxpayer from this on import. Carries the full BIR filer profile
+ * so the mapping produces a complete Taxpayer. `professionalFee` / `billingMethod`
+ * are firm-internal and intentionally NOT consumed here.
+ */
 export interface PortalClient {
   id: string;
   businessName: string;
@@ -11,6 +25,28 @@ export interface PortalClient {
   taxType: string | null;
   fiscalYearStart: string | null;
   currency: string;
+
+  // BIR filer profile (all nullable — a client may be partially filled).
+  kind?: string | null; // "individual" | "non-individual"
+  regName?: string | null;
+  lastName?: string | null;
+  firstName?: string | null;
+  middleName?: string | null;
+  tradeName?: string | null;
+  branch?: string | null;
+  rdo?: string | null;
+  rdoName?: string | null;
+  city?: string | null;
+  zip?: string | null;
+  birthdate?: string | null; // ISO date/datetime
+  incorpDate?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  citizenship?: string | null;
+  civilStatus?: string | null;
+  taxpayerType?: string | null;
+  classification?: string | null;
+  taxTypesJson?: PortalTaxTypeRow[] | null;
 }
 
 export interface PortalVatSummary {

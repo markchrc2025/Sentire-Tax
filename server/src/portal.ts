@@ -74,6 +74,27 @@ export interface PortalClient {
   taxType: string | null;
   fiscalYearStart: string | null;
   currency: string;
+  // Full BIR filer profile (mapped into a Taxpayer on import). Nullable.
+  kind?: string | null;
+  regName?: string | null;
+  lastName?: string | null;
+  firstName?: string | null;
+  middleName?: string | null;
+  tradeName?: string | null;
+  branch?: string | null;
+  rdo?: string | null;
+  rdoName?: string | null;
+  city?: string | null;
+  zip?: string | null;
+  birthdate?: string | null;
+  incorpDate?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  citizenship?: string | null;
+  civilStatus?: string | null;
+  taxpayerType?: string | null;
+  classification?: string | null;
+  taxTypesJson?: { type?: string; form?: string; frequency?: string; startDate?: string }[] | null;
 }
 
 export interface PortalVatSummary {
