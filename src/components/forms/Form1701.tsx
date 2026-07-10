@@ -295,17 +295,22 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         </div>
 
         <PartBand>Part I – Background Information of Taxpayer/Filer</PartBand>
-        {/* 4 TIN | 5 RDO */}
+        {/* 4 TIN | 5 RDO — labels inline with the boxes so the 14 TIN boxes
+            never overflow into the RDO cell. */}
         <div className="row b" style={{ borderTop: 0 }}>
-          <div className="bir-cell br" style={{ width: 360 }}>
-            <span className="bir-ino">4</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
-            <div style={{ marginTop: 3 }}>
+          <div className="bir-cell inline br" style={{ flex: "1 1 auto" }}>
+            <span className="lblgrp">
+              <span className="bir-ino">4</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
+            </span>
+            <div className="fld">
               <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
-          <div className="bir-cell" style={{ width: 130 }}>
-            <span className="bir-ino">5</span> <span className="bir-cap">RDO Code</span>
-            <div style={{ marginTop: 3 }}>
+          <div className="bir-cell inline" style={{ flex: "0 0 auto" }}>
+            <span className="lblgrp">
+              <span className="bir-ino">5</span> <span className="bir-cap">RDO Code</span>
+            </span>
+            <div className="fld">
               <BirBoxes value={(tp && tp.rdo) || ""} count={3} />
             </div>
           </div>
@@ -526,15 +531,19 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
         {/* Part IV — Background Information of Spouse */}
         <PartBand>Part IV – Background Information of Spouse</PartBand>
         <div className="row b" style={{ borderTop: 0 }}>
-          <div className="bir-cell br" style={{ width: 360 }}>
-            <span className="bir-ino">1</span> <span className="bir-cap">Spouse&rsquo;s Taxpayer Identification Number (TIN)</span>
-            <div style={{ marginTop: 3 }}>
+          <div className="bir-cell inline br" style={{ flex: "1 1 auto" }}>
+            <span className="lblgrp">
+              <span className="bir-ino">1</span> <span className="bir-cap">Spouse&rsquo;s Taxpayer Identification Number (TIN)</span>
+            </span>
+            <div className="fld">
               <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
-          <div className="bir-cell" style={{ width: 130 }}>
-            <span className="bir-ino">2</span> <span className="bir-cap">RDO Code</span>
-            <div style={{ marginTop: 3 }}>
+          <div className="bir-cell inline" style={{ flex: "0 0 auto" }}>
+            <span className="lblgrp">
+              <span className="bir-ino">2</span> <span className="bir-cap">RDO Code</span>
+            </span>
+            <div className="fld">
               <BirBoxes value={(data.spouseRdo as string) || ""} count={3} />
             </div>
           </div>
