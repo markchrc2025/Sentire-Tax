@@ -8,10 +8,11 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { env } from "./env.js";
+import { env, portalEnabled } from "./env.js";
 import { migrate, ms, pool } from "./db.js";
 import { HttpError, requireAuth, signIn, signUp, verify, type AuthUser } from "./auth.js";
 import { COR_ALLOWED_TYPES, COR_MAX_BYTES, corKey, corSignedUrl, deleteCor, putCor } from "./storage.js";
+import { portal } from "./portal.js";
 
 type Vars = { Variables: { user: AuthUser } };
 
@@ -234,6 +235,38 @@ api.delete("/taxpayers/:id/cor", async (c) => {
     await pool.query("update taxpayers set cor_path = null, updated_at = now() where id = $1", [id]);
   }
   return c.json({ ok: true });
+});
+
+// -------------------------------------------- Accounting Firm Portal connector
+// Server-side broker to the Portal (holds OAuth creds; browser never sees them).
+// Every route is behind requireAuth, so only a signed-in practitioner can sync.
+
+api.get("/portal/status", (c) => c.json({ enabled: portalEnabled() }));
+
+api.get("/portal/clients", async (c) => {
+  const query = c.req.query("query") || undefined;
+  return c.json(await portal.listClients(query));
+});
+
+api.get("/portal/clients/:id", async (c) => {
+  return c.json(await portal.getClient(c.req.param("id")));
+});
+
+api.get("/portal/clients/:id/vat-summary", async (c) => {
+  const year = Number(c.req.query("year"));
+  const quarter = Number(c.req.query("quarter"));
+  if (!year || !quarter) throw new HttpError(400, "year and quarter are required.");
+  return c.json(await portal.getVatSummary(c.req.param("id"), year, quarter));
+});
+
+api.post("/portal/clients/:id/bir-filings", async (c) => {
+  const body = await c.req.json<unknown>();
+  return c.json(await portal.pushFiling(c.req.param("id"), body));
+});
+
+api.post("/portal/clients/:id/input-tax-asset", async (c) => {
+  const body = await c.req.json<unknown>();
+  return c.json(await portal.bookInputTaxAsset(c.req.param("id"), body));
 });
 
 app.route("/api", api);

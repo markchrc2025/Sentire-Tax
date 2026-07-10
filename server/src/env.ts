@@ -25,4 +25,18 @@ export const env = {
   /** comma-separated allowed origins for CORS; default allows all */
   corsOrigin: process.env.CORS_ORIGIN || "*",
   port: Number(process.env.PORT || 8080),
+
+  // --- Accounting Firm Portal integration (optional) ----------------------
+  // The `portal-sync` connector is enabled only when all three are set. It
+  // holds the Portal OAuth2 client-credentials server-side; the browser never
+  // sees them (design §7.2 trust boundary).
+  portal: {
+    baseUrl: (process.env.PORTAL_BASE_URL || "").replace(/\/$/, ""), // e.g. https://…/api/v1
+    clientId: process.env.PORTAL_CLIENT_ID || "",
+    clientSecret: process.env.PORTAL_CLIENT_SECRET || "",
+  },
 };
+
+/** True when the Portal connector is configured (all creds present). */
+export const portalEnabled = (): boolean =>
+  Boolean(env.portal.baseUrl && env.portal.clientId && env.portal.clientSecret);
