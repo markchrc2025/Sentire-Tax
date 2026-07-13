@@ -6,8 +6,10 @@
 // (and that matches what Print / Save as PDF produces). jsPDF + html-to-image
 // are dynamically imported so they only load when the preview is used.
 
-/** Build an A4 PDF Blob from one or more rendered `.bir-sheet` elements. */
-export async function sheetsToPdfBlob(sheets: HTMLElement[]): Promise<Blob> {
+/** Build an A4 PDF Blob from one or more rendered `.bir-sheet` elements.
+ *  `title` becomes the PDF's document title (the name the embedded viewer
+ *  and downloads show instead of the blob's random id). */
+export async function sheetsToPdfBlob(sheets: HTMLElement[], title?: string): Promise<Blob> {
   const [{ jsPDF }, htmlToImage] = await Promise.all([
     import("jspdf"),
     import("html-to-image"),
@@ -23,6 +25,7 @@ export async function sheetsToPdfBlob(sheets: HTMLElement[]): Promise<Blob> {
   }
 
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait", compress: true });
+  if (title) pdf.setProperties({ title });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 

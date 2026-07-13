@@ -5,6 +5,7 @@
 // (items 64-66). Field keys match the 1701Q compute engine + XML builder.
 
 import type { Comp1701Q } from "../../lib/compute";
+import { fmtDate } from "../../lib/format";
 import type { GuidedProps } from "../formProps";
 import { GuidedShell, gName, makeGuided, type GuidedStep } from "./guidedKit";
 
@@ -55,7 +56,7 @@ export function Guided1701Q({ tp, data, set, comp, onViewForm, onPrint }: Guided
               { label: "Taxpayer", value: name },
               { label: "TIN", value: tp && tp.tin },
               { label: "RDO Code", value: tp && tp.rdo },
-              { label: "Date of Birth", value: tp && tp.birthdate },
+              { label: "Date of Birth", value: fmtDate(tp && tp.birthdate) },
               { label: "Email", value: tp && tp.email },
               { label: "Citizenship", value: tp && tp.citizenship },
               { label: "Address", value: tp ? [tp.address, tp.city].filter(Boolean).join(", ") : "" },

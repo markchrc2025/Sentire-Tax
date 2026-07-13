@@ -4,6 +4,7 @@
 // renders <input> and is mounted as JSX, which would remount on each keystroke and drop the cursor.
 
 import type { ReactNode } from "react";
+import { fmtDate } from "../../lib/format";
 import { tin14 } from "../../lib/taxpayer";
 import type { Comp2316 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
@@ -16,13 +17,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
       ? [tp.lastName, tp.firstName, tp.middleName].filter(Boolean).join(", ")
       : tp.regName
     : "";
-  const dob =
-    tp && tp.birthdate
-      ? (() => {
-          const [y, m, d] = tp.birthdate.split("-");
-          return m + "/" + d + "/" + y;
-        })()
-      : "";
+  const dob = fmtDate(tp && tp.birthdate);
 
   const pick = (f: string, v: string) => set(f, data[f] === v ? "" : v);
   const is = (f: string, v: string) => data[f] === v;

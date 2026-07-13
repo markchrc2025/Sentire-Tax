@@ -50,3 +50,11 @@ export function fmtAmt(
 export function peso(n: number | string | null | undefined): string {
   return "₱ " + fmtAmt(n);
 }
+
+/** ISO yyyy-mm-dd (from date inputs) → MM/DD/YYYY, the format printed on the
+ *  BIR forms. Anything not ISO-shaped is shown as typed. */
+export function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso).trim());
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : String(iso);
+}

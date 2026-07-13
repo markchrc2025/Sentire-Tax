@@ -7,6 +7,8 @@ import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { computeFor } from "../../lib/compute";
 import { download as downloadXml } from "../../lib/xml/build1701A";
 import { buildXml, xmlFileName, xmlSupported } from "../../lib/xml/buildXml";
+import { filingVersion, versionLabel } from "../../lib/period";
+import { pdfBaseName } from "../../lib/pdf/pdfName";
 import { displayName, formatTin, initials } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FilingData, XmlExport } from "../../types";
@@ -62,7 +64,7 @@ export function Editor({ filingId }: { filingId: string }) {
         const found = Array.from(root.querySelectorAll<HTMLElement>(".bir-sheet"));
         const sheets = found.length ? found : [root];
         const { sheetsToPdfBlob } = await import("../../lib/pdf/renderPdf");
-        const blob = await sheetsToPdfBlob(sheets);
+        const blob = await sheetsToPdfBlob(sheets, pdfBaseName(filing, repo.taxpayers.get(filing.taxpayerId)));
         if (req !== pdfReq.current) return; // a newer edit superseded this render
         const url = URL.createObjectURL(blob);
         setPdfUrl((prev) => {
@@ -122,12 +124,24 @@ export function Editor({ filingId }: { filingId: string }) {
   };
 
   function doPrint() {
+    // Print / Save as PDF suggests the page title as the filename — swap in
+    // the convention name (Form_Period_Full Name) for the duration.
+    const printNow = () => {
+      const prev = document.title;
+      document.title = pdfBaseName(filing!, tp);
+      const restore = () => {
+        document.title = prev;
+        window.removeEventListener("afterprint", restore);
+      };
+      window.addEventListener("afterprint", restore);
+      window.print();
+    };
     if (guided) {
       setMode("form");
-      setTimeout(() => window.print(), 250);
+      setTimeout(printNow, 250);
       return;
     }
-    setTimeout(() => window.print(), 60);
+    setTimeout(printNow, 60);
   }
 
   function doXML() {
@@ -156,6 +170,11 @@ export function Editor({ filingId }: { filingId: string }) {
         <span className="s-formchip lg" style={{ ["--fc" as string]: (meta && FORM_COLOR[meta.cat]) || "#6B6259" }}>
           {filing.form}
         </span>
+        {filingVersion(filing) > 0 && (
+          <span className="s-verchip lg" title="Amended return version">
+            {versionLabel(filingVersion(filing))}
+          </span>
+        )}
         <div className="s-ebar-title">
           <b>{meta?.name}</b>
           <i>
