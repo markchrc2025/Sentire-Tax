@@ -1,5 +1,6 @@
-// Editor.tsx — the core screen: mode toggle (Guided/Form), zoom, print, XML
-// export, autosave, and the summary rail. Ported from Editor in bir-shell2.jsx.
+// Editor.tsx — the core screen: mode toggle (Guided fill / Form preview),
+// print, XML export, autosave, and the summary rail. Data entry is Guided-only;
+// the Form view is a read-only PDF preview of the faithful form.
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -25,36 +26,21 @@ export function Editor({ filingId }: { filingId: string }) {
   const filing = repo.filings.get(filingId);
   const [data, setData] = useState<FilingData>(() => (filing ? { ...(filing.data || {}) } : {}));
   const [saved, setSaved] = useState(true);
-  const [zoom, setZoom] = useState(1);
-  const [fit, setFit] = useState(true);
   const [mode, setMode] = useState<"guided" | "form">("guided");
   const [xmlMsg, setXmlMsg] = useState<string | null>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Form mode shows a live PDF preview by default; "edit" reveals the inline form.
-  const [formTab, setFormTab] = useState<"pdf" | "edit">("pdf");
+  // Form mode is a read-only PDF preview of the faithful form. All data entry
+  // happens in Guided, so the printed form can never diverge from the wizard.
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState(false);
   const docRef = useRef<HTMLDivElement>(null);
   const pdfReq = useRef(0);
 
-  // fit-to-width (declared before the early return so hook order is stable)
+  // Live PDF preview: render the faithful form sheets to a real PDF whenever
+  // Form mode is open, debounced so rapid edits collapse into one render.
   useEffect(() => {
-    function recalc() {
-      if (!fit || !stageRef.current) return;
-      const avail = stageRef.current.clientWidth - 48;
-      setZoom(Math.min(1, avail / 1044));
-    }
-    recalc();
-    window.addEventListener("resize", recalc);
-    return () => window.removeEventListener("resize", recalc);
-  }, [fit, mode]);
-
-  // Live PDF preview: render the faithful form sheets to a real PDF whenever the
-  // PDF tab is open in Form mode, debounced so rapid edits collapse into one render.
-  useEffect(() => {
-    if (!filing || mode !== "form" || formTab !== "pdf") return;
+    if (!filing || mode !== "form") return;
     setPdfBusy(true);
     const timer = setTimeout(async () => {
       const req = ++pdfReq.current;
@@ -81,7 +67,7 @@ export function Editor({ filingId }: { filingId: string }) {
     }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, formTab, data, filing?.form]);
+  }, [mode, data, filing?.form]);
 
   // Release the preview blob URL when it changes or the editor unmounts.
   useEffect(
@@ -238,43 +224,6 @@ export function Editor({ filingId }: { filingId: string }) {
             "Saving…"
           )}
         </span>
-        {!guided && (
-          <div className="g-mode" style={{ marginLeft: 2 }}>
-            <button className={formTab === "pdf" ? "on" : ""} onClick={() => setFormTab("pdf")}>
-              <Icon d={SIco.file} size={14} />
-              PDF
-            </button>
-            <button className={formTab === "edit" ? "on" : ""} onClick={() => setFormTab("edit")}>
-              <Icon d={SIco.edit} size={14} />
-              Edit
-            </button>
-          </div>
-        )}
-        {!guided && formTab === "edit" && (
-          <div className="s-zoom">
-            <button
-              className="s-iconbtn"
-              onClick={() => {
-                setFit(false);
-                setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)));
-              }}
-            >
-              <Icon d={SIco.zoomOut} size={15} />
-            </button>
-            <button className="s-zoom-val" onClick={() => setFit((v) => !v)}>
-              {fit ? "Fit" : Math.round(zoom * 100) + "%"}
-            </button>
-            <button
-              className="s-iconbtn"
-              onClick={() => {
-                setFit(false);
-                setZoom((z) => Math.min(1.6, +(z + 0.1).toFixed(2)));
-              }}
-            >
-              <Icon d={SIco.zoomIn} size={15} />
-            </button>
-          </div>
-        )}
         {xmlOk && (
           <button className="s-btn s-btn-xml" onClick={doXML} title="Export eBIRForms XML">
             <Icon d={SIco.code} size={16} />
@@ -305,27 +254,23 @@ export function Editor({ filingId }: { filingId: string }) {
             onPrint={doPrint}
           />
         ) : (
-          <div className="s-stage" ref={stageRef}>
-            {/* The faithful form — visible when editing, off-screen (but laid out,
-                so it can be captured) when showing the PDF preview. */}
-            <div
-              className={formTab === "pdf" ? "s-pdf-source" : "s-stage-inner"}
-              style={formTab === "pdf" ? undefined : { zoom }}
-            >
+          <div className="s-stage">
+            {/* The faithful form is rendered off-screen (but laid out) purely so
+                it can be captured to PDF. `inert` keeps its fields out of the tab
+                order — the form is a preview, never a data-entry surface. */}
+            <div className="s-pdf-source" {...({ inert: "" } as Record<string, string>)}>
               <div className="bir-doc" ref={docRef} data-rate={(data.taxRate as string) || "graduated"}>
                 <FormView form={filing.form} tp={tp} data={data} set={set} comp={comp} />
               </div>
             </div>
-            {formTab === "pdf" && (
-              <div className="s-pdfwrap">
-                {pdfUrl ? (
-                  <iframe className="s-pdfframe" title="Form PDF preview" src={pdfUrl + "#view=FitH"} />
-                ) : (
-                  <div className="s-pdf-msg">{pdfErr ? "Couldn't render the PDF preview." : "Rendering PDF…"}</div>
-                )}
-                {pdfBusy && pdfUrl && <span className="s-pdf-badge">Updating…</span>}
-              </div>
-            )}
+            <div className="s-pdfwrap">
+              {pdfUrl ? (
+                <iframe className="s-pdfframe" title="Form PDF preview" src={pdfUrl + "#view=FitH"} />
+              ) : (
+                <div className="s-pdf-msg">{pdfErr ? "Couldn't render the PDF preview." : "Rendering PDF…"}</div>
+              )}
+              {pdfBusy && pdfUrl && <span className="s-pdf-badge">Updating…</span>}
+            </div>
           </div>
         )}
 
