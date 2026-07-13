@@ -11,6 +11,7 @@
 // fields are editable inputs. Field keys match the 1701Q compute engine + XML.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { fmtDate } from "../../lib/format";
 import { tin14 } from "../../lib/taxpayer";
 import type { Comp1701Q } from "../../lib/compute";
 import type { FormProps } from "../formProps";
@@ -306,7 +307,7 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
             <span className="lblgrp">
               <span className="bir-ino">11</span> <span className="bir-cap">Date of Birth (MM/DD/YYYY)</span>
             </span>
-            <div className="fld"><BirVal value={tp && tp.birthdate} /></div>
+            <div className="fld"><BirVal value={fmtDate(tp && tp.birthdate)} /></div>
           </div>
           <div className="bir-cell inline grow">
             <span className="lblgrp">

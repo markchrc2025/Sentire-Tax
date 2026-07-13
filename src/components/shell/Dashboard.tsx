@@ -3,6 +3,7 @@
 import { useNavigate } from "react-router-dom";
 import { CATALOG, FORM_COLOR } from "../../lib/catalog";
 import { fmtAmt } from "../../lib/format";
+import { filingVersion, formSegment, versionLabel } from "../../lib/period";
 import { headlineAmount } from "../../lib/summary";
 import { displayName, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
@@ -19,7 +20,7 @@ export function Dashboard() {
     const tp = repo.taxpayers.get(f.taxpayerId);
     const tin = normalizeTin(tp?.tin);
     const period = f.period || (typeof f.data?.year === "string" ? f.data.year : "");
-    return `/${f.form}/${encodeURIComponent(period || "draft")}/${tin}`;
+    return `/${formSegment(f.form, filingVersion(f))}/${encodeURIComponent(period || "draft")}/${tin}`;
   };
 
   return (
@@ -71,6 +72,7 @@ export function Dashboard() {
                   >
                     {f.form}
                   </span>
+                  {filingVersion(f) > 0 && <span className="s-verchip">{versionLabel(filingVersion(f))}</span>}
                   <span className="s-formname">{m?.name}</span>
                 </div>
                 <div className="s-td-tp">{displayName(tp)}</div>

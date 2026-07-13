@@ -1,9 +1,12 @@
 // NewFiling.tsx — pick a form + year + taxpayer, then open /{form}/{year}/{tin}.
+// Filing the same form + period twice for one taxpayer is only allowed as an
+// amended return: the duplicate gets a version suffix in the URL ("1701v1")
+// and the user must confirm "Is this an Amended Return?" = Yes to proceed.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CATALOG, CATEGORIES, FORM_COLOR } from "../../lib/catalog";
-import { buildPeriod, isQuarterlyForm } from "../../lib/period";
+import { buildPeriod, filingVersion, formSegment, isQuarterlyForm } from "../../lib/period";
 import { displayName, initials, normalizeTin } from "../../lib/taxpayer";
 import { useRepository } from "../../lib/repository/RepositoryProvider";
 import type { FormCode } from "../../types";
@@ -16,6 +19,9 @@ export function NewFiling() {
   const [tpId, setTpId] = useState("");
   const [year, setYear] = useState("");
   const [quarter, setQuarter] = useState("Q1");
+  const [amendedChoice, setAmendedChoice] = useState<"" | "yes" | "no">("");
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const taxpayers = repo.taxpayers.all();
   const selectedTp = taxpayers.find((t) => t.id === tpId);
   const tin = normalizeTin(selectedTp?.tin);
@@ -24,8 +30,34 @@ export function NewFiling() {
   const period = year.trim() ? buildPeriod(year, quarterly ? quarter : undefined) : "";
   const canGenerate = Boolean(form && tpId && period && tin);
 
+  // Existing filings for this exact form + period + taxpayer (any version).
+  const existing =
+    form && tpId && period
+      ? repo.filings.all().filter((f) => f.form === form && f.taxpayerId === tpId && f.period === period)
+      : [];
+  const nextVersion = existing.length ? Math.max(...existing.map(filingVersion)) + 1 : 0;
+
+  // A different form/period/taxpayer is a different question — reset the answer.
+  useEffect(() => {
+    setAmendedChoice("");
+  }, [form, tpId, period]);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3600);
+  }
+
   function generate() {
     if (!form || !tin || !period) return;
+    if (existing.length > 0) {
+      if (amendedChoice !== "yes") {
+        showToast("Filing cannot proceed. Detected duplicate form and year.");
+        return;
+      }
+      navigate(`/${formSegment(form, nextVersion)}/${encodeURIComponent(period)}/${tin}`);
+      return;
+    }
     navigate(`/${form}/${encodeURIComponent(period)}/${tin}`);
   }
 
@@ -129,6 +161,40 @@ export function NewFiling() {
         </div>
       )}
 
+      {existing.length > 0 && form && (
+        <div className="s-dupe">
+          <div className="s-dupe-head">
+            <Icon d={SIco.warn} size={16} />
+            <span>
+              A <b>{form}</b> for <b>{period}</b> already exists for this taxpayer. Filing it again will create{" "}
+              <b>{form}</b>
+              <span className="s-verchip">v{nextVersion}</span> — that is only allowed as an amended return.
+            </span>
+          </div>
+          <div className="s-dupe-q">
+            <span>Is this an Amended Return?</span>
+            <label>
+              <input
+                type="radio"
+                name="nf-amended"
+                checked={amendedChoice === "yes"}
+                onChange={() => setAmendedChoice("yes")}
+              />
+              Yes
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="nf-amended"
+                checked={amendedChoice === "no"}
+                onChange={() => setAmendedChoice("no")}
+              />
+              No
+            </label>
+          </div>
+        </div>
+      )}
+
       <div className="s-step-actions">
         <button className="s-btn" onClick={() => navigate("/filings")}>
           Cancel
@@ -138,6 +204,16 @@ export function NewFiling() {
           <Icon d={SIco.chevR} size={16} />
         </button>
       </div>
+
+      {toast && (
+        <div className="s-toast err">
+          <Icon d={SIco.warn} size={16} />
+          <div>
+            <b>Duplicate filing</b>
+            <span>{toast}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

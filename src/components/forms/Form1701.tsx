@@ -17,7 +17,7 @@ import { tin14 } from "../../lib/taxpayer";
 import type { Comp1701 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
-import { num } from "../../lib/format";
+import { fmtDate, num } from "../../lib/format";
 import { BirHeader, DeclSign, PartBand, PaymentDetails } from "../formparts";
 import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
 
@@ -365,7 +365,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
             <span className="lblgrp">
               <span className="bir-ino">10</span> <span className="bir-cap">Date of Birth (MM/DD/YYYY)</span>
             </span>
-            <div className="fld"><BirVal value={tp && tp.birthdate} /></div>
+            <div className="fld"><BirVal value={fmtDate(tp && tp.birthdate)} /></div>
           </div>
           <div className="bir-cell inline grow">
             <span className="lblgrp">

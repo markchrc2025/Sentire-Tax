@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtAmt, num, peso, roundPeso } from "../format";
+import { fmtAmt, fmtDate, num, peso, roundPeso } from "../format";
 
 describe("num", () => {
   it("parses numbers, strips commas, treats blanks as 0", () => {
@@ -60,5 +60,18 @@ describe("peso", () => {
   it("prefixes the peso sign", () => {
     expect(peso(1234)).toBe("₱ 1,234");
     expect(peso(-1234)).toBe("₱ (1,234)");
+  });
+});
+
+describe("fmtDate — ISO date → MM/DD/YYYY (printed BIR format)", () => {
+  it("reformats ISO dates from the date inputs", () => {
+    expect(fmtDate("1967-05-18")).toBe("05/18/1967");
+    expect(fmtDate("1983-09-18")).toBe("09/18/1983");
+  });
+  it("passes through empty and non-ISO values", () => {
+    expect(fmtDate("")).toBe("");
+    expect(fmtDate(null)).toBe("");
+    expect(fmtDate(undefined)).toBe("");
+    expect(fmtDate("05/18/1967")).toBe("05/18/1967");
   });
 });

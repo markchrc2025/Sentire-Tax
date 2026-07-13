@@ -8,14 +8,7 @@ import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
 import { SEAL_SRC } from "../formparts";
 import { BirAmt, BirBoxes, BirCkRow, BirText, BirVal, type SetFn } from "../formkit";
-import { fmtAmt } from "../../lib/format";
-
-function fmtDOB(iso?: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return m + "/" + d + "/" + y;
-}
+import { fmtAmt, fmtDate } from "../../lib/format";
 
 // ── form-wide context so the row helpers below can live at MODULE scope.
 //    Defining them inside the page components gave each render a new component
@@ -299,7 +292,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
             <span className="bir-ino">10</span> <span className="bir-cap">Date of Birth (MM/DD/YYYY)</span>
           </span>
           <div className="fld">
-            <BirVal value={tp && tp.birthdate ? fmtDOB(tp.birthdate) : ""} />
+            <BirVal value={fmtDate(tp && tp.birthdate)} />
           </div>
         </div>
         <div className="bir-cell inline grow">

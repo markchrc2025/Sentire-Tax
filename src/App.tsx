@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import type { FormCode } from "./types";
 import { isFormCode } from "./lib/catalog";
-import { parsePeriod } from "./lib/period";
+import { filingVersion, parsePeriod, splitFormSegment } from "./lib/period";
 import { formatTin, normalizeTin } from "./lib/taxpayer";
 import { useRepository } from "./lib/repository/RepositoryProvider";
 import { Sidebar } from "./components/shell/Sidebar";
@@ -36,13 +36,16 @@ export function App() {
   );
 }
 
-/** Resolves /{form}/{period}/{tin} to a filing (creating the draft if needed). */
+/** Resolves /{form}/{period}/{tin} to a filing (creating the draft if needed).
+ *  The form segment may carry an amendment number ("1701v1" = first amended
+ *  return of the 1701 for that period). */
 function FilingEditor() {
-  const { form, period, tin } = useParams();
+  const { form: formSeg, period, tin } = useParams();
   const { repo, refresh } = useRepository();
   const navigate = useNavigate();
   const [filingId, setFilingId] = useState<string | null>(null);
 
+  const { form, version } = splitFormSegment(formSeg);
   const validForm = isFormCode(form);
   const wantTin = normalizeTin(tin);
   const tp = validForm ? repo.taxpayers.all().find((t) => normalizeTin(t.tin) === wantTin) ?? null : null;
@@ -50,21 +53,31 @@ function FilingEditor() {
   useEffect(() => {
     setFilingId(null);
     if (!validForm || !period || !tp) return;
-    // Find this taxpayer's draft for the form+period, or create one.
+    // Find this taxpayer's draft for the form+period+version, or create one.
     let f = repo.filings
       .all()
-      .find((x) => x.form === form && x.taxpayerId === tp.id && x.period === period);
+      .find(
+        (x) =>
+          x.form === form && x.taxpayerId === tp.id && x.period === period && filingVersion(x) === version,
+      );
     if (!f) {
       const { year, quarter } = parsePeriod(period);
       f = repo.filings.create(form as FormCode, tp.id);
       f.period = period;
-      f.data = { ...f.data, year, ...(quarter ? { quarter } : {}) };
+      f.data = {
+        ...f.data,
+        year,
+        ...(quarter ? { quarter } : {}),
+        // An amended return: remember its version and pre-answer Item
+        // "Amended Return?" with Yes on the form itself.
+        ...(version > 0 ? { __version: String(version), amended: "yes" } : {}),
+      };
       repo.filings.save(f);
       refresh();
     }
     setFilingId(f.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, period, tp?.id]);
+  }, [form, version, period, tp?.id]);
 
   if (!validForm) return <Navigate to="/filings" replace />;
   if (!tp) return <TaxpayerNotFound tin={tin} onBack={() => navigate("/filings")} />;
