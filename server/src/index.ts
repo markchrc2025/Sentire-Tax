@@ -200,16 +200,30 @@ api.put("/taxpayers/:id/cor", async (c) => {
   if (!COR_ALLOWED_TYPES.includes(contentType)) {
     throw new HttpError(400, "Unsupported file type. Please upload a PDF, PNG, JPEG, or WebP.");
   }
-  const owns = await pool.query("select 1 from taxpayers where id = $1 and owner_id = $2", [id, uid]);
-  if (owns.rowCount === 0) throw new HttpError(403, "Not your taxpayer.");
   const body = new Uint8Array(await c.req.arrayBuffer());
   if (body.byteLength === 0) throw new HttpError(400, "Empty file.");
   if (body.byteLength > COR_MAX_BYTES) {
     throw new HttpError(400, "File is too large — the maximum COR size is 10 MB.");
   }
+  // The COR is a pure attachment — no taxpayer pre-check, the upload always
+  // proceeds. The object key is derived from the AUTHENTICATED user's own id,
+  // so files can only ever land in the caller's folder.
   const key = corKey(uid, id);
   await putCor(key, body, contentType);
-  await pool.query("update taxpayers set cor_path = $1, updated_at = now() where id = $2", [key, id]);
+  // Record the path on the taxpayer row (owner-scoped). If the row's insert
+  // is still in flight (brand-new taxpayer saved in the same breath), retry
+  // once shortly after instead of failing the upload.
+  const linkCorPath = () =>
+    pool.query(
+      "update taxpayers set cor_path = $1, updated_at = now() where id = $2 and owner_id = $3",
+      [key, id, uid],
+    );
+  const first = await linkCorPath();
+  if (first.rowCount === 0) {
+    setTimeout(() => {
+      linkCorPath().catch((e) => console.error("[cor] link retry", e));
+    }, 500);
+  }
   return c.json({ corPath: key });
 });
 
@@ -231,7 +245,10 @@ api.delete("/taxpayers/:id/cor", async (c) => {
   const corPath = r.rows[0]?.cor_path as string | null | undefined;
   if (corPath) {
     await deleteCor(corPath);
-    await pool.query("update taxpayers set cor_path = null, updated_at = now() where id = $1", [id]);
+    await pool.query(
+      "update taxpayers set cor_path = null, updated_at = now() where id = $1 and owner_id = $2",
+      [id, uid],
+    );
   }
   return c.json({ ok: true });
 });

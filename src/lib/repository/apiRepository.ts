@@ -71,6 +71,8 @@ export class ApiRepository implements Repository {
   }
 
   private async putFiling(f: Filing): Promise<void> {
+    // A filing created right after its taxpayer must not outrun the insert.
+    await this.taxpayerPuts[f.taxpayerId];
     await apiFetch(`/api/filings/${f.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
