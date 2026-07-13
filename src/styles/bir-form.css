@@ -31,6 +31,9 @@
 .bir-doc .row { display: flex; }
 .bir-doc .col { display: flex; flex-direction: column; }
 .bir-doc .grow { flex: 1; }
+/* A growing inline cell must clip its (nowrap) value rather than push the
+   fixed cells beside it — long answers shrink/clip inside their own border. */
+.bir-cell.inline.grow { flex: 1 1 0; min-width: 0; overflow: hidden; }
 /* 1px (not hairline 0.8px) so the column dividers don't sub-pixel-round away
    when the form is scaled below 100% at "Fit" zoom. */
 .bir-doc .b { border: 1px solid var(--ln); }

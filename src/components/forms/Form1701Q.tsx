@@ -290,9 +290,9 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
             <span className="lblgrp">
               <span className="bir-ino">10</span> <span className="bir-cap">Registered Address</span>
             </span>
-            <div className="fld"><BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} /></div>
+            <div className="fld"><BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} fit /></div>
           </div>
-          <div className="bir-cell inline" style={{ width: 150 }}>
+          <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
             <span className="lblgrp">
               <span className="bir-ino">10A</span> <span className="bir-cap">ZIP Code</span>
             </span>

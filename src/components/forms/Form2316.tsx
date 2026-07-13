@@ -115,7 +115,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
             <BirVal value={name} />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">5</span> <span className="bir-cap">RDO Code</span>
           </span>
@@ -130,10 +130,10 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
             <span className="bir-ino">6</span> <span className="bir-cap">Registered Address</span>
           </span>
           <div className="fld">
-            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} />
+            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} fit />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">6A</span> <span className="bir-cap">ZIP Code</span>
           </span>
@@ -151,7 +151,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
             <BirText field="empLocalAddr" data={data} set={set} />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">6C</span> <span className="bir-cap">ZIP Code</span>
           </span>
@@ -252,7 +252,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
             <BirText field="empAddr" data={data} set={set} />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">14A</span> <span className="bir-cap">ZIP Code</span>
           </span>
@@ -302,7 +302,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
             <BirText field="prevEmpAddr" data={data} set={set} />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">18A</span> <span className="bir-cap">ZIP Code</span>
           </span>

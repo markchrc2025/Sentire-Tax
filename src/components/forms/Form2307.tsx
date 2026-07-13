@@ -87,10 +87,10 @@ export function Form2307({ tp, data, set, comp }: FormProps<Comp2307>) {
             <span className="bir-ino">4</span> <span className="bir-cap">Registered Address</span>
           </span>
           <div className="fld">
-            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} />
+            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} fit />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">4A</span> <span className="bir-cap">ZIP</span>
           </span>
@@ -125,7 +125,7 @@ export function Form2307({ tp, data, set, comp }: FormProps<Comp2307>) {
             <BirText field="payorAddr" data={data} set={set} />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">8A</span> <span className="bir-cap">ZIP</span>
           </span>
