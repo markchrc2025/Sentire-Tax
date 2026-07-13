@@ -144,6 +144,41 @@ export function Editor({ filingId }: { filingId: string }) {
     setTimeout(printNow, 60);
   }
 
+  // Download the PDF with the convention filename. The embedded viewer's own
+  // download button names the file after the blob URL's random id (a browser
+  // limitation — a blob URL has no filename), so we trigger the save ourselves
+  // via an <a download> with the proper name.
+  async function doDownloadPdf() {
+    if (!filing) return;
+    const name = pdfBaseName(filing, tp) + ".pdf";
+    let url = pdfUrl;
+    let temp = false;
+    try {
+      if (!url) {
+        // The PDF preview hasn't rendered yet (e.g. the Edit tab) — render the
+        // laid-out sheets on demand.
+        const root = docRef.current;
+        if (!root) return;
+        const found = Array.from(root.querySelectorAll<HTMLElement>(".bir-sheet"));
+        const sheets = found.length ? found : [root];
+        const { sheetsToPdfBlob } = await import("../../lib/pdf/renderPdf");
+        const blob = await sheetsToPdfBlob(sheets, pdfBaseName(filing, tp));
+        url = URL.createObjectURL(blob);
+        temp = true;
+      }
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      console.error("[pdf download]", e);
+    } finally {
+      if (temp && url) setTimeout(() => URL.revokeObjectURL(url!), 4000);
+    }
+  }
+
   function doXML() {
     if (!filing) return;
     const xml = buildXml(filing.form, filing, tp, comp);
@@ -244,6 +279,12 @@ export function Editor({ filingId }: { filingId: string }) {
           <button className="s-btn s-btn-xml" onClick={doXML} title="Export eBIRForms XML">
             <Icon d={SIco.code} size={16} />
             Export XML
+          </button>
+        )}
+        {!guided && (
+          <button className="s-btn" onClick={doDownloadPdf} title="Download the PDF (named Form_Year_Full Name)">
+            <Icon d={SIco.download} size={16} />
+            Download PDF
           </button>
         )}
         <button className="s-btn s-btn-primary" onClick={doPrint}>
