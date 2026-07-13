@@ -11,6 +11,7 @@
 // fields are editable inputs. Field keys match the 1701Q compute engine + XML.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp1701Q } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
@@ -249,7 +250,7 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
           <div className="bir-cell br" style={{ width: 360 }}>
             <span className="bir-ino">5</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
             <div style={{ marginTop: 3 }}>
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell" style={{ width: 130 }}>
@@ -348,7 +349,7 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
           <div className="bir-cell br" style={{ width: 360 }}>
             <span className="bir-ino">17</span> <span className="bir-cap">Spouse&rsquo;s TIN</span>
             <div style={{ marginTop: 3 }}>
-              <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(data.spouseTin as string)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell" style={{ width: 130 }}>
@@ -449,7 +450,7 @@ export function Form1701Q({ tp, data, set, comp }: FormProps<Comp1701Q>) {
         <div className="row b" style={{ borderTop: 0 }}>
           <div className="bir-cell inline br grow">
             <span className="lblgrp"><span className="bir-cap">TIN</span></span>
-            <div className="fld"><BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} /></div>
+            <div className="fld"><BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} /></div>
           </div>
           <div className="bir-cell inline grow">
             <span className="lblgrp"><span className="bir-cap">Taxpayer/Filer&rsquo;s Last Name</span></span>

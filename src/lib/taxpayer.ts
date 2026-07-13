@@ -34,6 +34,17 @@ export function formatTin(v: string | null | undefined): string {
   return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 9)].filter(Boolean).join("-");
 }
 
+/** 14-digit TIN for the faithful forms' digit boxes: the 9-digit TIN plus
+ *  the 5-digit branch code, defaulting to 00000 (always shown, per the COR).
+ *  Partial TINs are returned as-is; no TIN renders empty boxes. */
+export function tin14(tin: string | null | undefined, branch?: string | null): string {
+  const digits = String(tin ?? "").replace(/\D/g, "");
+  if (digits.length < 9) return digits;
+  const fromTin = digits.slice(9, 14);
+  const br = (fromTin || String(branch ?? "").replace(/\D/g, "")).padStart(5, "0");
+  return digits.slice(0, 9) + br;
+}
+
 /** Up-to-two-letter avatar initials. */
 export function initials(name: string): string {
   if (!name) return "?";

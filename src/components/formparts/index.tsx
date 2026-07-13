@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 import type { FilingData, Taxpayer } from "../../types";
+import { tin14 } from "../../lib/taxpayer";
 import { BirAmt, BirBoxes, BirText, BirVal, type SetFn } from "../formkit";
 
 /** The official BIR seal, served from /public/assets. */
@@ -86,7 +87,7 @@ export function BgInfoReturn({ tp, startNo }: { tp: Taxpayer | null; startNo?: n
         <div className="bir-cell br" style={{ width: 360 }}>
           <span className="bir-ino">{n}</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
           <div style={{ marginTop: 3 }}>
-            <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+            <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
           </div>
         </div>
         <div className="bir-cell" style={{ width: 130 }}>
