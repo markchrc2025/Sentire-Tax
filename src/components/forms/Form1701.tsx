@@ -340,15 +340,18 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           </span>
           <div className="fld"><BirVal value={name} /></div>
         </div>
-        {/* 9 address | 9A zip */}
+        {/* 9 address | 9A zip — the address cell clips + shrinks its font for
+            long values; the ZIP cell is fixed and can never be pushed. */}
         <div className="row b" style={{ borderTop: 0 }}>
-          <div className="bir-cell inline br grow">
+          <div className="bir-cell inline br" style={{ flex: "1 1 0", minWidth: 0, overflow: "hidden" }}>
             <span className="lblgrp">
               <span className="bir-ino">9</span> <span className="bir-cap">Registered Address</span>
             </span>
-            <div className="fld"><BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} /></div>
+            <div className="fld">
+              <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} fit />
+            </div>
           </div>
-          <div className="bir-cell inline" style={{ width: 150 }}>
+          <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
             <span className="lblgrp">
               <span className="bir-ino">9A</span> <span className="bir-cap">ZIP Code</span>
             </span>

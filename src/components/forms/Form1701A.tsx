@@ -278,10 +278,10 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
             <span className="bir-ino">9</span> <span className="bir-cap">Registered Address</span>
           </span>
           <div className="fld">
-            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} />
+            <BirVal value={tp ? [tp.address, tp.city].filter(Boolean).join(", ") : ""} fit />
           </div>
         </div>
-        <div className="bir-cell inline" style={{ width: 150 }}>
+        <div className="bir-cell inline" style={{ flex: "0 0 150px" }}>
           <span className="lblgrp">
             <span className="bir-ino">9A</span> <span className="bir-cap">ZIP Code</span>
           </span>

@@ -150,10 +150,26 @@ export function BirText({
 }
 
 /** Read-only profile value (auto-filled from the taxpayer record). */
-export function BirVal({ value, lower }: { value?: string | null; lower?: boolean }) {
+export function BirVal({
+  value,
+  lower,
+  fit,
+}: {
+  value?: string | null;
+  lower?: boolean;
+  /** Shrink the font stepwise for long values so the text fits its cell
+   *  instead of pushing neighbouring cells (matches how the official form's
+   *  long answers are simply written smaller). */
+  fit?: boolean;
+}) {
   const empty = value == null || value === "";
+  const len = empty ? 0 : String(value).length;
+  const fitStyle =
+    fit && len > 46
+      ? { fontSize: len > 88 ? 9 : len > 64 ? 10.5 : 12, letterSpacing: 0 }
+      : undefined;
   return (
-    <span className={"bir-val" + (lower ? " lower" : "") + (empty ? " empty" : "")}>
+    <span className={"bir-val" + (lower ? " lower" : "") + (empty ? " empty" : "")} style={fitStyle}>
       {empty ? "—" : value}
     </span>
   );
