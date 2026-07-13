@@ -2,6 +2,7 @@
 // Ported from form-2551Q.jsx (pages 1 & 2).
 
 import type { Comp2551Q } from "../../lib/compute";
+import { tin14 } from "../../lib/taxpayer";
 import type { Row2551Q } from "../../types";
 import type { FormProps } from "../formProps";
 import {
@@ -253,7 +254,7 @@ export function Form2551Q({ tp, data, set, comp }: FormProps<Comp2551Q>) {
               <span className="bir-cap">TIN</span>
             </span>
             <div className="fld">
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell inline grow">

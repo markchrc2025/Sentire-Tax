@@ -4,6 +4,7 @@
 // renders <input> and is mounted as JSX, which would remount on each keystroke and drop the cursor.
 
 import type { ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp2316 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import { BirHeader, PartBand } from "../formparts";
@@ -102,7 +103,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
       <div className="bir-cell b" style={{ borderTop: 0 }}>
         <span className="bir-ino">3</span> <span className="bir-cap">TIN</span>
         <div style={{ marginTop: 3 }}>
-          <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+          <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
         </div>
       </div>
       <div className="row b" style={{ borderTop: 0 }}>
@@ -231,7 +232,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
         <div className="bir-cell b br" style={{ width: 360, border: 0 }}>
           <span className="bir-ino">12</span> <span className="bir-cap">TIN</span>
           <div style={{ marginTop: 3 }}>
-            <BirBoxes value={(data.empTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+            <BirBoxes value={tin14(data.empTin as string)} count={14} groups={[3, 3, 3, 5]} />
           </div>
         </div>
         <div className="bir-cell inline grow">
@@ -281,7 +282,7 @@ export function Form2316({ tp, data, set, comp }: FormProps<Comp2316>) {
         <div className="bir-cell b br" style={{ width: 360, border: 0 }}>
           <span className="bir-ino">16</span> <span className="bir-cap">TIN</span>
           <div style={{ marginTop: 3 }}>
-            <BirBoxes value={(data.prevEmpTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+            <BirBoxes value={tin14(data.prevEmpTin as string)} count={14} groups={[3, 3, 3, 5]} />
           </div>
         </div>
         <div className="bir-cell inline grow">

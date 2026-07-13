@@ -2,6 +2,7 @@
 // Ported from form-1701A-p1.jsx + form-1701A-p2.jsx.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp1701A } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
@@ -215,7 +216,7 @@ function Form1701A_P1({ tp, data, set, comp }: FormProps<Comp1701A>) {
         <div className="bir-cell br" style={{ width: 340 }}>
           <span className="bir-ino">4</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
           <div style={{ marginTop: 3 }}>
-            <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+            <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
           </div>
         </div>
         <div className="bir-cell br" style={{ width: 110 }}>
@@ -635,7 +636,7 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
       </div>
       <div className="row b" style={{ borderTop: 0 }}>
         <div className="bir-cell br grow" style={{ minHeight: 24, display: "flex", alignItems: "center" }}>
-          <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+          <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
         </div>
         <div className="bir-cell" style={{ width: 360, flex: "none", minHeight: 24, display: "flex", alignItems: "center" }}>
           <BirVal value={lastName} />
@@ -743,7 +744,7 @@ function Form1701A_P2({ tp, data, set, comp }: FormProps<Comp1701A>) {
           <span className="bir-ino">66</span>{" "}
           <span className="bir-cap">Spouse&rsquo;s Taxpayer Identification Number (TIN)</span>
           <div style={{ marginTop: 3 }}>
-            <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+            <BirBoxes value={tin14(data.spouseTin as string)} count={14} groups={[3, 3, 3, 5]} />
           </div>
         </div>
         <div className="bir-cell br" style={{ width: 96 }}>

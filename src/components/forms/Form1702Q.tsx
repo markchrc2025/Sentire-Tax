@@ -9,6 +9,7 @@
 // detailed schedule entries. Field keys match build1702Q + Guided1702Q.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp1702Q } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
@@ -250,7 +251,7 @@ export function Form1702Q({ tp, data, set, comp }: FormProps<Comp1702Q>) {
           <div className="bir-cell br" style={{ width: 360 }}>
             <span className="bir-ino">6</span> <span className="bir-cap">TIN</span>
             <div style={{ marginTop: 3 }}>
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell" style={{ width: 130 }}>
@@ -460,7 +461,7 @@ export function Form1702Q({ tp, data, set, comp }: FormProps<Comp1702Q>) {
               <span className="bir-cap">TIN</span>
             </span>
             <div className="fld">
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell inline grow">

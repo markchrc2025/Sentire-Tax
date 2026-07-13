@@ -13,6 +13,7 @@
 // authentic eBIRForms builder (build1701).
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp1701 } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
@@ -248,7 +249,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
   const Bb = comp.B;
 
   return (
-    <FormCtx.Provider value={{ data, set, is, pick, tin: (tp && tp.tin) || "", lastName }}>
+    <FormCtx.Provider value={{ data, set, is, pick, tin: tin14(tp && tp.tin, tp && tp.branch), lastName }}>
       {/* ============================ PAGE 1 ============================ */}
       <div className="bir-sheet bir-1701 bir-1701-p1">
         <BirHeader
@@ -303,7 +304,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
               <span className="bir-ino">4</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
             </span>
             <div className="fld">
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell inline" style={{ flex: "0 0 auto" }}>
@@ -539,7 +540,7 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
               <span className="bir-ino">1</span> <span className="bir-cap">Spouse&rsquo;s Taxpayer Identification Number (TIN)</span>
             </span>
             <div className="fld">
-              <BirBoxes value={(data.spouseTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(data.spouseTin as string)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell inline" style={{ flex: "0 0 auto" }}>

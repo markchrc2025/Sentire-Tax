@@ -5,6 +5,7 @@
 //   Page 2 — Part IV Details of VAT Computation, then Part V Schedules 1-4.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp2550Q } from "../../lib/compute";
 import type { FilingData, FilingRow } from "../../types";
 import type { FormProps } from "../formProps";
@@ -356,7 +357,7 @@ export function Form2550Q({ tp, data, set, comp }: FormProps<Comp2550Q>) {
               <span className="bir-cap">TIN</span>
             </span>
             <div className="fld">
-              <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+              <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
             </div>
           </div>
           <div className="bir-cell inline grow">

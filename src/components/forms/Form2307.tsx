@@ -2,6 +2,7 @@
 // Ported from form-2307.jsx.
 
 import type { Comp2307 } from "../../lib/compute";
+import { tin14 } from "../../lib/taxpayer";
 import type { Row2307 } from "../../types";
 import type { FormProps } from "../formProps";
 import { BirHeader, PartBand } from "../formparts";
@@ -70,7 +71,7 @@ export function Form2307({ tp, data, set, comp }: FormProps<Comp2307>) {
       <div className="bir-cell b" style={{ borderTop: 0 }}>
         <span className="bir-ino">2</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
         <div style={{ marginTop: 3 }}>
-          <BirBoxes value={(tp && tp.tin) || ""} count={14} groups={[3, 3, 3, 5]} />
+          <BirBoxes value={tin14(tp && tp.tin, tp && tp.branch)} count={14} groups={[3, 3, 3, 5]} />
         </div>
       </div>
       <div className="bir-cell inline b" style={{ borderTop: 0 }}>
@@ -105,7 +106,7 @@ export function Form2307({ tp, data, set, comp }: FormProps<Comp2307>) {
       <div className="bir-cell b" style={{ borderTop: 0 }}>
         <span className="bir-ino">6</span> <span className="bir-cap">Taxpayer Identification Number (TIN)</span>
         <div style={{ marginTop: 3 }}>
-          <BirBoxes value={(data.payorTin as string) || ""} count={14} groups={[3, 3, 3, 5]} />
+          <BirBoxes value={tin14(data.payorTin as string)} count={14} groups={[3, 3, 3, 5]} />
         </div>
       </div>
       <div className="bir-cell inline b" style={{ borderTop: 0 }}>

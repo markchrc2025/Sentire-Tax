@@ -11,6 +11,7 @@
 // detailed schedule entries. Field keys match build1702RT + Guided1702RT.
 
 import { createContext, useContext, type ReactNode } from "react";
+import { tin14 } from "../../lib/taxpayer";
 import type { Comp1702RT } from "../../lib/compute";
 import type { FormProps } from "../formProps";
 import type { FilingData } from "../../types";
@@ -259,7 +260,7 @@ export function Form1702RT({ tp, data, set, comp }: FormProps<Comp1702RT>) {
       ? [tp.lastName, tp.firstName].filter(Boolean).join(", ")
       : tp.regName
     : "";
-  const tin = (tp && tp.tin) || "";
+  const tin = tin14(tp && tp.tin, tp && tp.branch);
   const incDate = tp && tp.incorpDate ? fmtIncDate(tp.incorpDate) : "";
 
   return (
