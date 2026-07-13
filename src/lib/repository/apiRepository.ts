@@ -22,6 +22,10 @@ export class ApiRepository implements Repository {
   private taxpayersMap: Record<string, Taxpayer> = {};
   private filingsMap: Record<string, Filing> = {};
   private filingTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  /** Last in-flight PUT per taxpayer — COR calls await it so a brand-new
+   *  taxpayer's file upload can't outrun the row insert (the server would
+   *  reject it with "Not your taxpayer"). */
+  private taxpayerPuts: Record<string, Promise<void>> = {};
   private errorCb?: (message: string) => void;
 
   /** Subscribe to background write failures so they can be surfaced in the UI. */
@@ -89,7 +93,11 @@ export class ApiRepository implements Repository {
       if (!tp.createdAt) tp.createdAt = Date.now();
       tp.updatedAt = Date.now();
       this.taxpayersMap[tp.id] = tp;
-      this.putTaxpayer(tp).catch((e) => this.report("save taxpayer", e));
+      const put = this.putTaxpayer(tp);
+      // Remember the in-flight write (errors surface here; awaiters just
+      // need ordering, not the failure).
+      this.taxpayerPuts[tp.id] = put.catch(() => {});
+      put.catch((e) => this.report("save taxpayer", e));
       return tp;
     },
     remove: (id) => {
@@ -97,9 +105,10 @@ export class ApiRepository implements Repository {
       for (const f of Object.values(this.filingsMap)) {
         if (f.taxpayerId === id) delete this.filingsMap[f.id];
       }
-      apiFetch(`/api/taxpayers/${id}`, { method: "DELETE" }).catch((e) =>
-        this.report("remove taxpayer", e),
-      );
+      const pending = this.taxpayerPuts[id] ?? Promise.resolve();
+      pending
+        .then(() => apiFetch(`/api/taxpayers/${id}`, { method: "DELETE" }))
+        .catch((e) => this.report("remove taxpayer", e));
     },
   };
 
@@ -166,6 +175,9 @@ export class ApiRepository implements Repository {
     if (!COR_ALLOWED_TYPES.includes(file.type)) {
       throw new Error("Unsupported file type. Please upload a PDF, PNG, JPEG, or WebP.");
     }
+    // A just-created taxpayer's insert may still be in flight — wait for it,
+    // or the server rejects the upload before the row exists.
+    await this.taxpayerPuts[taxpayerId];
     const res = await apiFetch(`/api/taxpayers/${taxpayerId}/cor`, {
       method: "PUT",
       headers: { "Content-Type": file.type },
@@ -188,6 +200,7 @@ export class ApiRepository implements Repository {
   }
 
   async removeCor(taxpayerId: string): Promise<void> {
+    await this.taxpayerPuts[taxpayerId];
     await apiFetch(`/api/taxpayers/${taxpayerId}/cor`, { method: "DELETE" });
     const tp = this.taxpayersMap[taxpayerId];
     if (tp) tp.corPath = undefined;
