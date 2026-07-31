@@ -86,6 +86,40 @@ describe("compute1701 — mixed income", () => {
     expect(c.A.tax8biz).toBe(60000);
     expect(c.A.taxDue).toBe(42500 + 60000); // grad(500k)=42,500 + 60,000
   });
+  it("Schedule 1: comp + tax withheld total from per-employer rows (fallback to legacy field)", () => {
+    // Two taxpayer employers: comp = 300k + 200k, tax withheld = 20k + 15k.
+    const c = compute1701({
+      year: "2024",
+      sch1_1Name: "ACME CORP",
+      sch1_1CI: "300000",
+      sch1_1TW: "20000",
+      sch1_2Name: "GLOBEX INC",
+      sch1_2CI: "200000",
+      sch1_2TW: "15000",
+      rateA: "graduated",
+    });
+    expect(c.A.comp).toBe(500000);
+    expect(c.A.taxWithheldComp).toBe(35000);
+    // Legacy single-field filings still compute when no employer rows are present.
+    const legacy = compute1701({ year: "2024", compA: "480000", compCwtA: "25000" });
+    expect(legacy.A.comp).toBe(480000);
+    expect(legacy.A.taxWithheldComp).toBe(25000);
+  });
+  it("Schedule 1: rows tagged 'spouse' feed the spouse side (3B)", () => {
+    const c = compute1701({
+      year: "2024",
+      sch1_1Who: "taxpayer",
+      sch1_1CI: "400000",
+      sch1_1TW: "30000",
+      sch1_2Who: "spouse",
+      sch1_2CI: "250000",
+      sch1_2TW: "18000",
+    });
+    expect(c.A.comp).toBe(400000);
+    expect(c.A.taxWithheldComp).toBe(30000);
+    expect(c.B.comp).toBe(250000);
+    expect(c.B.taxWithheldComp).toBe(18000);
+  });
   it("Part IX: reconciliation totals derive from items 1-4 and 6-9 per column", () => {
     const c = compute1701({
       year: "2024",

@@ -231,16 +231,17 @@ export function build1701(filing: Filing, tp: Taxpayer | null, comp: Comp1701): 
   E("txtPg2IShed2a_TIN3");
   E("txtPg2IShed2a_BranchCode");
 
-  // Schedule 1c — gross compensation income & tax withheld (col CI / TW; rows 1-3a/3b)
-  // 1 = filer compensation; 3A = aggregate gross income (sales). TW columns not captured.
-  P("txtPg2IShed1c_1CI", amt(A.comp));
-  Z("txtPg2IShed1c_1TW");
-  Z("txtPg2IShed1c_2CI");
-  Z("txtPg2IShed1c_2TW");
-  P("txtPg2IShed1c_3ACI", amt(A.netSales + A.otherInc));
-  Z("txtPg2IShed1c_3ATW");
-  Z("txtPg2IShed1c_3BCI");
-  Z("txtPg2IShed1c_3BTW");
+  // Schedule 1c — gross compensation income & tax withheld (col CI / TW).
+  // Rows 1-2 are per-employer entries (Schedule 1); 3A/3B are the taxpayer /
+  // spouse totals that carry into Schedule 2 Item 4.
+  P("txtPg2IShed1c_1CI", amt(num(d.sch1_1CI)));
+  P("txtPg2IShed1c_1TW", amt(num(d.sch1_1TW)));
+  P("txtPg2IShed1c_2CI", amt(num(d.sch1_2CI)));
+  P("txtPg2IShed1c_2TW", amt(num(d.sch1_2TW)));
+  P("txtPg2IShed1c_3ACI", amt(A.comp));
+  P("txtPg2IShed1c_3ATW", amt(A.taxWithheldComp));
+  P("txtPg2IShed1c_3BCI", amt(B.comp));
+  P("txtPg2IShed1c_3BTW", amt(B.taxWithheldComp));
 
   // Schedule 2 — taxable income (A = filer, B = spouse).
   // 4 = sales/gross income, 5 = less deductions, 6 = net/taxable, 7 = special.

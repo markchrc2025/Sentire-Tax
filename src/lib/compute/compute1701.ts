@@ -75,7 +75,26 @@ export function compute1701(d: FilingData): Comp1701 {
   const out = { A: {}, B: {} } as Comp1701;
   (["A", "B"] as const).forEach((s) => {
     const o = {} as Side1701;
-    o.comp = num(d["comp" + s]); // taxable compensation income
+    // Schedule 1 — per-employer gross compensation & tax withheld. A row counts
+    // for the taxpayer (side A) unless explicitly tagged "spouse" (side B). When
+    // any employer row carries data it drives compensation and comp tax withheld
+    // (Items 3A/3B); otherwise fall back to the single legacy field.
+    const wantWho = s === "A" ? "taxpayer" : "spouse";
+    let sch1CI = 0;
+    let sch1TW = 0;
+    let sch1HasRows = false;
+    [1, 2].forEach((r) => {
+      const who = (d[`sch1_${r}Who`] as string) || "taxpayer";
+      if (who !== wantWho) return;
+      const ci = num(d[`sch1_${r}CI`]);
+      const tw = num(d[`sch1_${r}TW`]);
+      const named =
+        typeof d[`sch1_${r}Name`] === "string" && (d[`sch1_${r}Name`] as string).trim() !== "";
+      if (ci || tw || named) sch1HasRows = true;
+      sch1CI += ci;
+      sch1TW += tw;
+    });
+    o.comp = sch1HasRows ? sch1CI : num(d["comp" + s]); // taxable compensation income
     o.sales = num(d["sales" + s]);
     o.returns = num(d["returns" + s]);
     o.netSales = o.sales - o.returns;
@@ -132,7 +151,7 @@ export function compute1701(d: FilingData): Comp1701 {
     o.prevPaid = num(d["prevPaid" + s]);
     o.cwt = num(d["cwt" + s]);
     o.excess = num(d["excess" + s]);
-    o.taxWithheldComp = num(d["compCwt" + s]);
+    o.taxWithheldComp = sch1HasRows ? sch1TW : num(d["compCwt" + s]);
     o.credits = o.prevPaid + o.cwt + o.excess + o.taxWithheldComp;
     o.payable = o.taxDue - o.credits;
     o.installment = num(d["install" + s]);
