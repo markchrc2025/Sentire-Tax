@@ -655,19 +655,26 @@ export function Form1701({ tp, data, set, comp }: FormProps<Comp1701>) {
           <div style={{ width: 140, padding: "3px 5px" }} className="br">Compensation Income</div>
           <div style={{ width: 140, padding: "3px 5px", textAlign: "center" }}>Tax Withheld</div>
         </div>
-        {[1, 2].map((r) => (
+        {[1, 2].map((r) => {
+          const who = data[`sch1_${r}Who`];
+          const rowData = Boolean(data[`sch1_${r}Name`] || data[`sch1_${r}CI`] || data[`sch1_${r}TW`]);
+          // A filled row with no explicit "For" defaults to the taxpayer.
+          const isSpouse = who === "spouse";
+          const isTaxpayer = who === "taxpayer" || (!isSpouse && rowData);
+          return (
           <div className="row b" style={{ borderTop: 0 }} key={"emp" + r}>
             <div className="num" style={{ width: 28, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{r}</div>
             <div style={{ width: 96, padding: "2px 5px", display: "flex", flexDirection: "column", gap: 2, justifyContent: "center" }} className="br">
-              <BirCkRow on={is(`sch1_${r}Who`, "taxpayer")} onClick={() => pick(`sch1_${r}Who`, "taxpayer")}>Taxpayer</BirCkRow>
-              <BirCkRow on={is(`sch1_${r}Who`, "spouse")} onClick={() => pick(`sch1_${r}Who`, "spouse")}>Spouse</BirCkRow>
+              <BirCkRow on={isTaxpayer} onClick={() => pick(`sch1_${r}Who`, "taxpayer")}>Taxpayer</BirCkRow>
+              <BirCkRow on={isSpouse} onClick={() => pick(`sch1_${r}Who`, "spouse")}>Spouse</BirCkRow>
             </div>
             <div className="grow br" style={{ display: "flex", alignItems: "center" }}><BirText field={`sch1_${r}Name`} data={data} set={set} /></div>
             <div style={{ width: 160, display: "flex", alignItems: "center" }} className="br bl"><BirText field={`sch1_${r}TIN`} data={data} set={set} lower /></div>
             <div style={{ width: 140, display: "flex", alignItems: "center" }} className="br"><BirAmt field={`sch1_${r}CI`} data={data} set={set} /></div>
             <div style={{ width: 140, display: "flex", alignItems: "center" }}><BirAmt field={`sch1_${r}TW`} data={data} set={set} /></div>
           </div>
-        ))}
+          );
+        })}
         <div className="row b" style={{ borderTop: 0 }}>
           <div className="num" style={{ width: 28, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>3A</div>
           <div className="grow br" style={{ fontSize: 10.4, padding: "2px 6px", display: "flex", alignItems: "center", fontWeight: 700 }}>

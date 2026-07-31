@@ -133,4 +133,28 @@ describe("build1701", () => {
     // Key count unchanged — same schema as the authentic sample.
     expect((x.match(/<div>/g) || []).length).toBe(837);
   });
+
+  it("maps Schedule 1c per-employer compensation & tax withheld", () => {
+    const d = {
+      ...data,
+      sch1_1CI: "300000",
+      sch1_1TW: "20000",
+      sch1_2Who: "spouse",
+      sch1_2CI: "250000",
+      sch1_2TW: "18000",
+    };
+    const f = { ...filing, data: d };
+    const x = build1701(f, tp, compute1701(d));
+    expect(x).toContain("frm1701:txtPg2IShed1c_1CI=300,000.00frm1701:txtPg2IShed1c_1CI=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_1TW=20,000.00frm1701:txtPg2IShed1c_1TW=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_2CI=250,000.00frm1701:txtPg2IShed1c_2CI=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_2TW=18,000.00frm1701:txtPg2IShed1c_2TW=");
+    // 3A = taxpayer totals, 3B = spouse totals.
+    expect(x).toContain("frm1701:txtPg2IShed1c_3ACI=300,000.00frm1701:txtPg2IShed1c_3ACI=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_3ATW=20,000.00frm1701:txtPg2IShed1c_3ATW=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_3BCI=250,000.00frm1701:txtPg2IShed1c_3BCI=");
+    expect(x).toContain("frm1701:txtPg2IShed1c_3BTW=18,000.00frm1701:txtPg2IShed1c_3BTW=");
+    // Schema size unchanged — values updated in place, no new keys.
+    expect((x.match(/<div>/g) || []).length).toBe(837);
+  });
 });

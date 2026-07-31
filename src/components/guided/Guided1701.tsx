@@ -55,6 +55,65 @@ function PairAB({
   );
 }
 
+// "For" selector on a Schedule 1 employer row — which spouse the employer pays.
+// Taxpayer is the default (an unset value counts as taxpayer everywhere).
+function ForSel({ F, field }: { F: ReturnType<typeof makeGuided>; field: string }) {
+  const spouse = F.is(field, "spouse");
+  return (
+    <div className="g-seg2 sm">
+      <button className={!spouse ? "on" : ""} onClick={() => F.pick(field, "taxpayer")}>
+        Taxpayer
+      </button>
+      <button className={spouse ? "on" : ""} onClick={() => F.pick(field, "spouse")}>
+        Spouse
+      </button>
+    </div>
+  );
+}
+
+// Schedule 1 — Gross Compensation Income & Tax Withheld. Two employer rows
+// (matching the official form), each with the employer's name, TIN, gross
+// compensation and tax withheld. Module scope keeps the inputs' identity stable
+// across renders so the focused field never loses its cursor mid-edit.
+function EmployerRows({
+  F,
+  showSpouse,
+}: {
+  F: ReturnType<typeof makeGuided>;
+  showSpouse: boolean;
+}) {
+  return (
+    <div className="g-emp">
+      {[1, 2].map((r) => (
+        <div className="g-emp-row" key={r}>
+          <div className="g-emp-head">
+            <span className="g-emp-no">Employer {r}</span>
+            {showSpouse && <ForSel F={F} field={`sch1_${r}Who`} />}
+          </div>
+          <div className="g-emp-grid">
+            <label className="g-emp-f wide">
+              <span>Name of Employer</span>
+              <F.Txt field={`sch1_${r}Name`} up maxw={9999} />
+            </label>
+            <label className="g-emp-f">
+              <span>Employer&rsquo;s TIN</span>
+              <F.Txt field={`sch1_${r}TIN`} ph="000-000-000-00000" maxw={9999} />
+            </label>
+            <label className="g-emp-f">
+              <span>Compensation Income</span>
+              <F.Money field={`sch1_${r}CI`} />
+            </label>
+            <label className="g-emp-f">
+              <span>Tax Withheld</span>
+              <F.Money field={`sch1_${r}TW`} />
+            </label>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Schedule 4 ordinary allowable itemized deduction categories (items 1-16).
 const SCHED4 = [
   "Amortizations",
@@ -296,11 +355,30 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
       tab: "Income",
       title: "Income",
       desc: "Enter your compensation income and business figures. We compute net business income and tax due.",
-      render: () => (
+      render: () => {
+        const showSpouse = married && data.spouseIncome === "yes";
+        return (
         <>
-          <F.Q label="Taxable Compensation Income (from BIR Form 2316)" help="Your taxable salary, if employed.">
-            <F.Money field="compA" />
-          </F.Q>
+          <div className="g-subsec">
+            <div className="g-subsec-h">Compensation income — Schedule 1 (from BIR Form 2316)</div>
+            <p className="g-q-help" style={{ marginTop: -2 }}>
+              Enter each employer shown on your BIR Form 2316. We total these into Gross Compensation &amp; Tax
+              Withheld (Schedule 1, Items 3A/3B){showSpouse ? " — tag each row Taxpayer or Spouse." : "."}
+            </p>
+            <EmployerRows F={F} showSpouse={showSpouse} />
+            <F.Result
+              rows={[
+                { label: "Gross compensation — Taxpayer (3A)", value: A.comp },
+                { label: "Tax withheld — Taxpayer (3A)", value: A.taxWithheldComp },
+                ...(showSpouse
+                  ? [
+                      { label: "Gross compensation — Spouse (3B)", value: comp.B.comp },
+                      { label: "Tax withheld — Spouse (3B)", value: comp.B.taxWithheldComp },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
           <F.Q label="Sales / Revenues / Receipts / Fees" req>
             <F.Money field="salesA" />
           </F.Q>
@@ -326,7 +404,8 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
             ]}
           />
         </>
-      ),
+        );
+      },
     },
   );
 
@@ -393,8 +472,11 @@ export function Guided1701({ tp, data, set, comp, onViewForm, onPrint }: GuidedP
           <F.Q label="Creditable Tax Withheld per BIR Form 2307">
             <F.Money field="cwtA" />
           </F.Q>
-          <F.Q label="Tax Withheld on Compensation per BIR Form 2316">
-            <F.Money field="compCwtA" />
+          <F.Q
+            label="Tax Withheld on Compensation per BIR Form 2316"
+            help="Totaled from your employers in Schedule 1 (Income step)."
+          >
+            <F.Money ro value={A.taxWithheldComp} />
           </F.Q>
           <F.Result
             rows={[

@@ -1362,6 +1362,66 @@
   align-items: center;
   gap: 8px;
 }
+
+/* Schedule 1 — employer rows (guided 1701 compensation). */
+.g-emp {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.g-emp-row {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: #fcfbf8;
+  padding: 14px 16px;
+}
+.g-emp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.g-emp-no {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--tax);
+  letter-spacing: 0.02em;
+}
+.g-emp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.g-emp-f {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.g-emp-f.wide {
+  grid-column: 1 / -1;
+}
+.g-emp-f > span {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.g-emp-f .g-text,
+.g-emp-f .g-money {
+  max-width: none;
+  width: 100%;
+}
+.g-seg2.sm button {
+  padding: 6px 14px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+@media (max-width: 620px) {
+  .g-emp-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .g-toggle-row {
   display: flex;
   align-items: center;
